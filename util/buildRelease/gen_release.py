@@ -81,7 +81,6 @@ def main(verbose=False, workspace=None, repo='https://github.com/chapel-lang/cha
         logging.info("$CHPL_HOME is not set")
         logging.info('Chapel home found by relative path')
 
-    # TODO - wipe workspace?
 
     # Depending on workspace argument provided, setup workspace in some way:
     #if opts.workspace:
@@ -97,6 +96,11 @@ def main(verbose=False, workspace=None, repo='https://github.com/chapel-lang/cha
     #else:
     workspace=os.path.join(chpl_home, 'tar')
     source = os.path.join(workspace, 'chapel')
+
+    # Wipe directories in workspace
+    if os.path.isdir(source):
+        shutil.rmtree(source)
+
     if not opts.workspace:
         #   Checkout a fresh copy of Chapel
         cmd='git clone --depth=1 --branch={0} {1} {2}'.format(branch, repo, source)
@@ -224,11 +228,6 @@ def main(verbose=False, workspace=None, repo='https://github.com/chapel-lang/cha
     print(develfiles)
     for develfile in develfiles:
         os.remove(develfile)
-
-
-    # Prune compiler directories
-
-    # Prune runtime directories
 
     # Update permissions
     # chmod -R ugo+rX workspace
