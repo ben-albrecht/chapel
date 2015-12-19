@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# chpldoc documentation build configuration file, created by
+# Chapel documentation build configuration file, created by
 # sphinx-quickstart on Thu Jan 29 08:44:44 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -26,7 +26,7 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '1.0'
+needs_sphinx = '1.3'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -53,12 +53,23 @@ master_doc = 'index'
 # built documents.
 #
 # The short X.Y version.
-version = '1.12'
+
+# Here's an abominational hack to temporarily implement drop-down lists for our
+# current theme (rtd) until we start managing our own theme.
+
+version = """
+    <select onchange="navigateTo(this, 'window', false);">
+    <option selected="selected" value="http://chapel.cray.com/docs/master/">master</option>
+    <option value="http://chapel.cray.com/docs/1.12/">1.12</option>
+    <option value="http://chapel.cray.com/docs/1.11/">1.11</option>
+    </select>
+    """
+
 # The full version, including alpha/beta/rc tags.
 release = '1.12.0'
 
 # General information about the project.
-project = u'Chapel Documentation {0}'.format(version)
+project = u'Chapel Documentation'
 
 author_text = os.environ.get('CHPLDOC_AUTHOR', '')
 
@@ -132,7 +143,7 @@ if not on_rtd:
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = version
+html_title = release
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -144,7 +155,7 @@ html_title = version
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-#html_favicon = None
+html_favicon = '_static/cray-chapel-nowords.ico'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -169,25 +180,25 @@ html_static_path = ['_static']
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
-#html_additional_pages = {}
+#html_additional_pages = {'**' : 'header.html'}
 
 # If false, no module index is generated.
-#html_domain_indices = True
+html_domain_indices = True
 
 # If false, no index is generated.
-#html_use_index = True
+html_use_index = True
 
 # If true, the index is split into individual pages for each letter.
-#html_split_index = False
+html_split_index = False
 
 # If true, links to the reST sources are added to the pages.
-#html_show_sourcelink = True
+html_show_sourcelink = True
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
-#html_show_sphinx = True
+html_show_sphinx = False
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
-#html_show_copyright = True
+html_show_copyright = True
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
@@ -198,7 +209,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'chpldocdoc'
+htmlhelp_basename = 'chpldoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -279,7 +290,9 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
 
-## Monkey patch to disable nonlocal image warning for Chapel logo
+# -- Custom options ------------------------------------------------------
+
+## Patch to disable nonlocal image warning for Chapel logo
 original_warn_mode = sphinx.environment.BuildEnvironment.warn_node
 
 def allow_nonlocal_image_warn_node(self, msg, node):
