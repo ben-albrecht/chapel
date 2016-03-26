@@ -14,9 +14,6 @@
 [![Apache licensed](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE.chapel)
 [![Release](https://img.shields.io/badge/release-v1.13.0-blue.svg)](https://github.com/chapel-lang/chapel/releases/tag/1.13.0)
 
-
-# The Chapel Language
-
 Chapel is an emerging programming language designed for productive parallel
 computing at scale.
 
