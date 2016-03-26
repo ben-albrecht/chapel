@@ -1,12 +1,19 @@
-.. image:: http://chapel.cray.com/images/cray-chapel-logo-200.png
-    :align: center
+![Chapel](http://chapel.cray.com/images/cray-chapel-logo-650.png)
+
+[Website](http://chapel.cray.com/) |
+[Documentation](http://chapel.cray.com/docs/master/) |
+[Mailing List](https://sourceforge.net/p/chapel/mailman/?source=navbar) |
+[Learning Chapel](http://chapel.cray.com/learning.html) |
+[Twitter](https://twitter.com/ChapelLanguage) |
+[Performance Tracking](http://chapel.sourceforge.net/perf/)
 
 [![Build Status](https://travis-ci.org/chapel-lang/chapel.svg?branch=master)](https://travis-ci.org/chapel-lang/chapel)
+[![Coverity Scan Build](https://scan.coverity.com/projects/1222/badge.svg)](https://scan.coverity.com/projects/chapel)
+[![Apache licensed](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE.chapel)
+[![Release](https://img.shields.io/badge/release-v1.13.0-blue.svg)](https://github.com/chapel-lang/chapel/releases/tag/1.13.0)
 
-.. _chapelhome-readme:
 
-The Chapel Language
-===================
+# The Chapel Language
 
 Chapel is an emerging programming language designed for productive parallel
 computing at scale. Chapel's design and implementation have been undertaken
@@ -26,8 +33,7 @@ licensing terms.
 
 .. _chapelhome-quickstart:
 
-Quick Start Instructions
-------------------------
+## Quick Start Instructions
 
 The following instructions are designed to get you up and running with
 Chapel with a minimum of fuss.  Note that building and using Chapel in
