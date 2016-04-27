@@ -33,6 +33,7 @@ module ChapelBase {
 
   config param warnMaximalRange = false;    // Warns if integer rollover will cause
                                             // the iterator to yield zero times.
+  pragma "compiler generated"
   proc _throwOpError(param op: c_string) {
       compilerError("illegal use of '", op, "' on operands of type uint(64) and signed integer");
   }
@@ -1259,7 +1260,9 @@ module ChapelBase {
   // permitting the user to define their own overloads (or 'use'
   // a module which does).
   //
+  pragma "compiler generated"
   inline proc +(a: uint(64), b: int(64)) { _throwOpError("+"); }
+  pragma "compiler generated"
   inline proc +(a: int(64), b: uint(64)) { _throwOpError("+"); }
 
   //
@@ -1282,7 +1285,9 @@ module ChapelBase {
 
 
   // non-param/non-param
+  pragma "compiler generated"
   inline proc -(a: uint(64), b: int(64)) { _throwOpError("-"); }
+  pragma "compiler generated"
   inline proc -(a: int(64), b: uint(64)) { _throwOpError("-"); }
 
   // non-param/param and param/non-param
@@ -1295,7 +1300,9 @@ module ChapelBase {
 
 
   // non-param/non-param
+  pragma "compiler generated"
   inline proc *(a: uint(64), b: int(64)) { _throwOpError("*"); }
+  pragma "compiler generated"
   inline proc *(a: int(64), b: uint(64)) { _throwOpError("*"); }
 
   // non-param/param and param/non-param
@@ -1308,7 +1315,9 @@ module ChapelBase {
 
 
   // non-param/non-param
+  pragma "compiler generated"
   inline proc /(a: uint(64), b: int(64)) { _throwOpError("/"); }
+  pragma "compiler generated"
   inline proc /(a: int(64), b: uint(64)) { _throwOpError("/"); }
 
   // non-param/param and param/non-param
@@ -1328,7 +1337,9 @@ module ChapelBase {
 
 
   // non-param/non-param
+  pragma "compiler generated"
   inline proc **(a: uint(64), b: int(64)) { _throwOpError("**"); }
+  pragma "compiler generated"
   inline proc **(a: int(64), b: uint(64)) { _throwOpError("**"); }
 
   // non-param/param and param/non-param
@@ -1341,7 +1352,9 @@ module ChapelBase {
 
 
   // non-param/non-param
+  pragma "compiler generated"
   inline proc %(a: uint(64), b: int(64)) { _throwOpError("%"); }
+  pragma "compiler generated"
   inline proc %(a: int(64), b: uint(64)) { _throwOpError("%"); }
 
   // non-param/param and param/non-param
