@@ -1,15 +1,15 @@
 /*
  * Copyright 2004-2016 Cray Inc.
  * Other additional copyright holders may be indicated within.
- * 
+ *
  * The entirety of this work is licensed under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
- * 
+ *
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -177,45 +177,119 @@ module CommDiagnostics
     /*
       blocking GETs, in which initiator waits for completion
      */
-    var get: uint(64);
+    var get: int(64);
     /*
       non-blocking GETs
      */
-    var get_nb: uint(64);
+    var get_nb: int(64);
     /*
       blocking PUTs, in which initiator waits for completion
      */
-    var put: uint(64);
+    var put: int(64);
     /*
       non-blocking PUTs
      */
-    var put_nb: uint(64);
+    var put_nb: int(64);
     /*
       tests for non-blocking GET/PUT completions
      */
-    var test_nb: uint(64);
+    var test_nb: int(64);
     /*
       blocking waits for non-blocking GET/PUT completions
      */
-    var wait_nb: uint(64);
+    var wait_nb: int(64);
     /*
       non-blocking waits for non-blocking GET/PUT completions
      */
-    var try_nb: uint(64);
+    var try_nb: int(64);
     /*
       blocking remote executions, in which initiator waits for completion
      */
-    var execute_on: uint(64);
+    var execute_on: int(64);
     /*
       blocking remote executions performed by the target locale's
       Active Message handler
      */
-    var execute_on_fast: uint(64);
+    var execute_on_fast: int(64);
     /*
       non-blocking remote executions
      */
-    var execute_on_nb: uint(64);
+    var execute_on_nb: int(64);
   };
+
+  /*
+
+
+
+   */
+  iter chpl_commDiagnostics.these() ref {
+    yield this.get;
+    yield this.get_nb;
+    yield this.put;
+    yield this.put_nb;
+    yield this.test_nb;
+    yield this.wait_nb;
+    yield this.try_nb;
+    yield this.execute_on;
+    yield this.execute_on_fast;
+    yield this.execute_on_nb;
+  }
+
+
+  /* Indexing support */
+  proc chpl_commDiagnostics.this(i) ref {
+    select i {
+      when 'get' do
+        return this.get;
+      when 'get_nb' do
+        return this.get_nb;
+      when 'put' do
+        return this.put;
+      when 'put_nb' do
+        return this.put_nb;
+      when 'test_nb' do
+        return this.test_nb;
+      when 'wait_nb' do
+        return this.wait_nb;
+      when 'try_nb' do
+        return this.try_nb;
+      when 'execute_on' do
+        return this.execute_on;
+      when 'execute_on_fast' do
+        return this.execute_on_fast;
+      when 'execute_on_nb' do
+        return this.execute_on_nb;
+    }
+    halt("commDiagnostics index out of bounds: ", i);
+  }
+
+  /*
+
+
+
+   */
+  iter chpl_commDiagnostics.names(): string {
+    yield 'get';
+    yield 'get_nb';
+    yield 'put';
+    yield 'put_nb';
+    yield 'test_nb';
+    yield 'wait_nb';
+    yield 'try_nb';
+    yield 'execute_on';
+    yield 'execute_on_fast';
+    yield 'execute_on_nb';
+  }
+
+
+  /* Helper print function */
+  proc chpl_commDiagnostics.print() {
+    for loc in Locales do on loc {
+      for (d, name) in zip (this, this.names()) {
+        writeln(' ', name, ': ', d);
+      }
+    }
+  }
 
   /*
     The Chapel record type inherits the comm layer definition of it.
