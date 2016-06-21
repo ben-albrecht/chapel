@@ -599,7 +599,7 @@ proc create_and_analyze_graph(Pairs)
 
         // set the current label to the maximum label.
         if mylabel != maxlabel then
-          labels[vid].write(maxlabel, memory_order_relaxed);
+          labels[vid].poke(maxlabel);
       } // forall vid
       } // serial !parallel
     } // forall partition
