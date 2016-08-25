@@ -126,8 +126,9 @@
 # instead of "perf" in the above suffixes, and its all-caps version is used
 # in the all-caps file names instead "PERF".
 
-from __future__ import with_statement
+from __future__ import with_statement, print_function
 
+import argparse
 import execution_limiter
 import sys, os, subprocess, string, signal
 import operator
@@ -136,6 +137,9 @@ import fnmatch, time
 import re
 import shlex
 import datetime
+
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
 
 localdir = ''
 sub_test_start_time = time.time()
@@ -434,7 +438,7 @@ def GetTimer(f):
     lines = ReadFileWithComments(f)
     if len(lines) != 1:
         sys.stdout.write('[Error "%s" must contain exactly one non-comment line '
-            'with the name of the timer located in %s to use. Using default ' 
+            'with the name of the timer located in %s to use. Using default '
             'timer %s.]\n' %(f, timersdir, defaultTimer))
         timer = defaultTimer
     else:
@@ -451,9 +455,18 @@ def GetTimer(f):
 # options are one of the below configuration specific parameters that are
 # checked for. E.G the current comm layer. commExecNums are the optional
 # compopt and execopt number to enable different .good files for different
-# compopts/execopts with explicitly specifying name. 
-def FindGoodFile(basename, commExecNums=['']):
-    
+# compopts/execopts with explicitly specifying name.
+def FindGoodFile(basename, envCompopts, commExecNums=['']):
+
+    # Machine name we are running on
+    machine=os.uname()[1].split('.', 1)[0]
+
+    chpllm=os.getenv('CHPL_LOCALE_MODEL','flat').strip()
+    chpllmstr='.lm-'+chpllm
+
+    chplcomm=os.getenv('CHPL_COMM','none').strip()
+    chplcommstr='.comm-'+chplcomm
+
     goodfile = ''
     for commExecNum in commExecNums:
         # Try the machine specific .good
@@ -468,12 +481,16 @@ def FindGoodFile(basename, commExecNums=['']):
             goodfile=basename+chplcommstr+chpllmstr+commExecNum+'.good'
         # Else try the comm-specific .good file.
         if not os.path.isfile(goodfile):
+            # CHPL_COMM
             goodfile=basename+chplcommstr+commExecNum+'.good'
         # Else try locale model specific .good file.
         if not os.path.isfile(goodfile):
             goodfile=basename+chpllmstr+commExecNum+'.good'
         # Else try the platform-specific .good file.
         if not os.path.isfile(goodfile):
+            utildir=os.getenv('CHPL_TEST_UTIL_DIR');
+            platform=subprocess.Popen([utildir+'/chplenv/chpl_platform.py', '--target'], stdout=subprocess.PIPE).communicate()[0]
+            platform = platform.strip()
             goodfile=basename+'.'+platform+commExecNum+'.good'
         # Else use the execopts-specific .good file.
         if not os.path.isfile(goodfile):
@@ -495,16 +512,30 @@ def runSkipIf(skipifName):
     skiptest = subprocess.Popen([utildir+'/test/testEnv', './'+skipifName], stdout=subprocess.PIPE).communicate()[0]
     return skiptest
 
-# Start of sub_test proper
-#
-def main():
+def parse_args():
+    """ Parse command line arguments """
 
-    if len(sys.argv)!=2:
-        print 'usage: sub_test COMPILER'
-        sys.exit(0)
+    parser = ArgumentParser(prog='sub_test',
+                            usage= "%(prog)s compiler",
+                            description = ''' Testing script ''',
+                            formatter_class=ArgumentDefaultsHelpFormatter
+                           )
+    parser.add_argument('compiler', type=str, help='compiler to use')
+
+    return parser.parse_args()
+
+
+def main(compiler):
+    """ sub_test entry point """
+
+    print('compiler:', compiler)
+
+    #if len(sys.argv)!=2:
+    #    print('usage: sub_test COMPILER')
+    #    sys.exit(0)
 
     # Find the base installation
-    compiler=sys.argv[1]
+    #compiler=sys.argv[1]
     if not os.access(compiler,os.R_OK|os.X_OK):
         Fatal('Cannot execute compiler \''+compiler+'\'')
 
@@ -573,11 +604,6 @@ def main():
     # HW platform
     platform=subprocess.Popen([utildir+'/chplenv/chpl_platform.py', '--target'], stdout=subprocess.PIPE).communicate()[0]
     platform = platform.strip()
-    # sys.stdout.write('platform='+platform+'\n')
-
-    # Machine name we are running on
-    machine=os.uname()[1].split('.', 1)[0]
-    # sys.stdout.write('machine='+machine+'\n')
 
     # Get the system-wide preexec
     systemPreexec = os.getenv('CHPL_SYSTEM_PREEXEC')
@@ -619,7 +645,6 @@ def main():
     # CHPL_LOCALE_MODEL
     chpllm=os.getenv('CHPL_LOCALE_MODEL','flat').strip()
     chpllmstr='.lm-'+chpllm
-    #sys.stdout.write('lm=%s\n'%(chpllm))
 
     #
     # Test options for all tests in this directory
@@ -790,9 +815,9 @@ def main():
         if os.getenv('CHPL_TEST_COMP_PERF_DIR')!=None:
             compperfdir=os.getenv('CHPL_TEST_COMP_PERF_DIR')
         else:
-            compperfdir=chpl_home+'/test/compperfdat/' 
+            compperfdir=chpl_home+'/test/compperfdat/'
 
-        # The env var CHPL_PRINT_PASSES_FILE will cause the 
+        # The env var CHPL_PRINT_PASSES_FILE will cause the
         # compiler to save the pass timings to specified file.
         if os.getenv('CHPL_PRINT_PASSES_FILE')!=None:
             printpassesfile=os.getenv('CHPL_PRINT_PASSES_FILE')
@@ -806,7 +831,7 @@ def main():
         else:
             keyfile=chpl_home+'/test/performance/compiler/compilerPerformance.perfkeys'
 
-        # Check for the directory to store the tempory .dat files that will get 
+        # Check for the directory to store the tempory .dat files that will get
         # combined into one.
         if os.getenv('CHPL_TEST_COMP_PERF_TEMP_DAT_DIR')!=None:
             tempDatFilesDir = os.getenv('CHPL_TEST_COMP_PERF_TEMP_DAT_DIR')
@@ -1495,13 +1520,13 @@ def main():
                 # .good file can be of the form testname.<configuration>.good or
                 # explicitname.<configuration>.good. It's not currently setup to
                 # handle testname.<configuration>.<compoptsnum>.good, but that
-                # would be easy to add. 
-                basename = test_filename 
+                # would be easy to add.
+                basename = test_filename
                 if len(clist) != 0:
                     explicitcompgoodfile = clist[0].split('#')[1].strip()
                     basename = explicitcompgoodfile.replace('.good', '')
 
-                goodfile = FindGoodFile(basename)
+                goodfile = FindGoodFile(basename, envCompopts)
                 # sys.stdout.write('default goodfile=%s\n'%(goodfile))
 
                 if not os.path.isfile(goodfile) or not os.access(goodfile, os.R_OK):
@@ -1581,11 +1606,11 @@ def main():
             #
             sys.stdout.write('[Success compiling %s/%s]\n'%(localdir, test_filename))
 
-            # Note that compiler performance only times successful compilations. 
-            # Tests that are designed to fail before compilation is complete will 
-            # not get timed, so the total time compiling might be off slightly.   
+            # Note that compiler performance only times successful compilations.
+            # Tests that are designed to fail before compilation is complete will
+            # not get timed, so the total time compiling might be off slightly.
             if compperftest and not is_c_test:
-                # make the compiler performance directories if they don't exist 
+                # make the compiler performance directories if they don't exist
                 timePasses = True
                 if not os.path.isdir(compperfdir) and not os.path.isfile(compperfdir):
                     os.makedirs(compperfdir)
@@ -1599,8 +1624,8 @@ def main():
                     sys.stdout.write('[Error creating compiler performance temp dat file test directory %s]\n'%(tempDatFilesDir))
                     timePasses = False
 
-                # so long as we have to the directories 
-                if timePasses: 
+                # so long as we have to the directories
+                if timePasses:
                     # We need to name the files differently for each compiler
                     # option. 0 is the default compoptsnum if there are no options
                     # listed so we don't need to clutter the names with that
@@ -1633,7 +1658,7 @@ def main():
                             if os.path.isfile(datFile):
                                 os.unlink(datFile)
 
-                #delete the timing file     
+                #delete the timing file
                 cleanup(printpassesfile)
 
 
@@ -1983,24 +2008,24 @@ def main():
                                             communicate()[0])
 
                         if not perftest:
-                            # find the good file 
+                            # find the good file
 
                             basename = test_filename
                             commExecNum = ['']
 
                             # if there were multiple compopts/execopts find the
-                            # .good file that corresponds to that run 
+                            # .good file that corresponds to that run
                             if not onlyone:
                                 commExecNum.insert(0,'.'+str(compoptsnum)+'-'+str(execoptsnum))
 
                             # if the .good file was explicitly specified, look for
                             # that version instead of the multiple
-                            # compopts/execopts or just the base .good file 
+                            # compopts/execopts or just the base .good file
                             if explicitexecgoodfile != None:
                                 basename  = explicitexecgoodfile.replace('.good', '')
                                 commExecNum = ['']
 
-                            execgoodfile = FindGoodFile(basename, commExecNum)
+                            execgoodfile = FindGoodFile(basename, envCompopts, commExecNums=commExecNum)
 
                             if not os.path.isfile(execgoodfile) or not os.access(execgoodfile, os.R_OK):
                                 sys.stdout.write('[Error cannot locate program output comparison file %s/%s]\n'%(localdir, execgoodfile))
@@ -2102,4 +2127,6 @@ def main():
 
 if __name__ == '__main__':
 
-    main()
+    args = parse_args()
+
+    main(args.compiler)
