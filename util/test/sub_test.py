@@ -128,7 +128,6 @@
 
 from __future__ import with_statement, print_function
 
-import argparse
 import execution_limiter
 import sys, os, subprocess, string, signal
 import operator
@@ -138,11 +137,17 @@ import re
 import shlex
 import datetime
 
+from atexit import register
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 
+# Globals
+perflabel = ''
 localdir = ''
 sub_test_start_time = time.time()
+
+
+@register
 def elapsed_sub_test_time():
     """Print elapsed time for sub_test call to console."""
     global sub_test_start_time, localdir
@@ -156,20 +161,22 @@ def elapsed_sub_test_time():
 
     print('[Finished subtest "{0}" - {1:.3f} seconds]\n'.format(test_name, elapsed_sec))
 
-import atexit
-atexit.register(elapsed_sub_test_time)
 
-#
-# Time out class:  Read from a stream until time out
-#  A little ugly but sending SIGALRM (or any other signal) to Python
-#   can be unreliable (will not respond if holding certain locks).
-#
-class ReadTimeoutException(Exception): pass
+class ReadTimeoutException(Exception):
+    """
+     Time out class:  Read from a stream until time out
+     A little ugly but sending SIGALRM (or any other signal) to Python
+     can be unreliable (will not respond if holding certain locks).
+    """
+    pass
+
+
 
 def SetNonBlock(stream):
     flags = fcntl.fcntl(stream.fileno(), fcntl.F_GETFL)
     flags |= os.O_NONBLOCK
     fcntl.fcntl(stream.fileno(), fcntl.F_SETFL, flags)
+
 
 def SuckOutputWithTimeout(stream, timeout):
     SetNonBlock(stream)
@@ -191,6 +198,7 @@ def SuckOutputWithTimeout(stream, timeout):
             # to timeout  which doesn't seem quite right either.
     return buffer
 
+
 def LauncherTimeoutArgs(seconds):
     if useLauncherTimeout == 'pbs' or useLauncherTimeout == 'slurm':
         # --walltime=hh:mm:ss
@@ -207,17 +215,18 @@ def LauncherTimeoutArgs(seconds):
 # Auxilliary functions
 #
 
-# Escape all special characters
 def ShellEscape(arg):
+    """ Escape all special characters """
     return re.sub(r'([\\!@#$%^&*()?\'"|<>[\]{} ])', r'\\\1', arg)
 
-# Escape all special characters but leave spaces alone
+
 def ShellEscapeCommand(arg):
+    """ Escape all special characters but leave spaces alone """
     return re.sub(r'([\\!@#$%^&*()?\'"|<>[\]{}])', r'\\\1', arg)
 
 
-# Grabs the start and end of the output and replaces non-printable chars with ~
 def trim_output(output):
+    """ Grabs the start and end of the output and replaces non-printable chars with ~ """
     max_size = 256*1024 # ~1/4 MB
     if len(output) > max_size:
         new_output = output[:max_size/2]
@@ -226,32 +235,39 @@ def trim_output(output):
     return ''.join(s if s in string.printable else "~" for s in output)
 
 
-# return True if f has .chpl extension
 def IsChplTest(f):
+    """ Return True if f has .chpl extension """
     if re.match(r'^.+\.(chpl|test\.c)$', f):
         return True
     else:
         return False
 
-perflabel = '' # declare it for the following functions
 
-# file suffix: 'keys' -> '.perfkeys' etc.
 def PerfSfx(s):
+    """ File suffix: 'keys' -> '.perfkeys' etc. """
+    global perflabel
     return '.' + perflabel + s
 
-# directory-wide file: 'COMPOPTS' or 'compopts' -> './PERFCOMPOPTS' etc.
+
 def PerfDirFile(s):
+    """ Directory-wide file: 'COMPOPTS' or 'compopts' -> './PERFCOMPOPTS' etc. """
+    global perflabel
     return './' + perflabel.upper() + s.upper()
 
-# test-specific file: (foo,keys) -> foo.perfkeys etc.
+
 def PerfTFile(test_filename, sfx):
+    """ Test-specific file: (foo,keys) -> foo.perfkeys etc. """
+    global perflabel
     return test_filename + '.' + perflabel + sfx
 
-# Read a file or if the file is executable read its output. If the file is
-# executable, the current chplenv is copied into the env before executing.
-# Expands shell variables and strip out comments/whitespace. Returns a list of
-# string, one per line in the file.
+
 def ReadFileWithComments(f, ignoreLeadingSpace=True):
+    """
+    Read a file or if the file is executable read its output. If the file is
+    executable, the current chplenv is copied into the env before executing.
+    Expands shell variables and strip out comments/whitespace. Returns a list
+    of string, one per line in the file.
+    """
     mylines = ""
     # if the file is executable, run it and grab the output. If we get an
     # OSError while trying to run, report it and try to keep going
@@ -293,8 +309,9 @@ def ReadFileWithComments(f, ignoreLeadingSpace=True):
         mylist.append(line)
     return mylist
 
-# diff 2 files
+
 def DiffFiles(f1, f2):
+    """ Diff 2 files """
     sys.stdout.write('[Executing diff %s %s]\n'%(f1, f2))
     p = subprocess.Popen(['diff',f1,f2],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -303,9 +320,12 @@ def DiffFiles(f1, f2):
         sys.stdout.write(trim_output(myoutput))
     return p.returncode
 
-# diff output vs. .bad file, filtering line numbers out of error messages that arise
-# in module files.
+
 def DiffBadFiles(f1, f2):
+    """
+    Diff output vs. .bad file, filtering line numbers out of error messages
+    that arise in module files.
+    """
     sys.stdout.write('[Executing diff-ignoring-module-line-numbers %s %s]\n'%(f1, f2))
     p = subprocess.Popen([utildir+'/test/diff-ignoring-module-line-numbers', f1, f2],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -314,8 +334,9 @@ def DiffBadFiles(f1, f2):
         sys.stdout.write(myoutput)
     return p.returncode
 
-# kill process
+
 def KillProc(p, timeout):
+    """ Kill process """
     k = subprocess.Popen(['kill',str(p.pid)])
     k.wait()
     now = time.time()
@@ -328,8 +349,9 @@ def KillProc(p, timeout):
     subprocess.Popen(['kill','-9', str(p.pid)])
     return
 
-# clean up after the test has been built
+
 def cleanup(execname):
+    """ Clean up after the test has been built """
     try:
         if execname is not None:
             if os.path.isfile(execname):
@@ -355,11 +377,11 @@ def cleanup(execname):
         if not (getattr(ex, 'errno', 0) == 16 and platform == 'cygwin32'):
             sys.stdout.write('[Warning: could not remove {0}: {1}]\n'.format(execname, ex))
 
-def which(program):
-    """Returns absolute path to program, if it exists in $PATH. If not found,
-    returns None.
 
-    From: http://stackoverflow.com/a/377028
+def which(program):
+    """
+    Returns absolute path to program, if it exists in $PATH. If not found,
+    returns None.
     """
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
@@ -377,9 +399,9 @@ def which(program):
     return None
 
 
-# print (compopts: XX, execopts: XX) for later decoding of failed tests
 def printTestVariation(compoptsnum, compoptslist,
                        execoptsnum=0, execoptslist=[] ):
+    """ Print (compopts: XX, execopts: XX) for later decoding of failed tests """
     printCompOpts = True
     printExecOpts = True
     if compoptsnum==0 or len(compoptslist) <= 1:
@@ -400,16 +422,18 @@ def printTestVariation(compoptsnum, compoptslist,
     sys.stdout.write(')')
     return
 
-# return true if string is an integer
+
 def IsInteger(str):
+    """ Return true if string is an integer """
     try:
         int(str)
         return True
     except ValueError:
         return False
 
-# read integer value from a file
+
 def ReadIntegerValue(f, localdir):
+    """ Read integer value from a file """
     to = ReadFileWithComments(f)
     if to:
         for l in to:
@@ -421,17 +445,21 @@ def ReadIntegerValue(f, localdir):
                 break
     Fatal('Invalid integer value in '+f+' ('+localdir+')')
 
-# report an error message and exit
+
 def Fatal(message):
+    """ Report an error message and exit """
     sys.stdout.write('[Error (sub_test): '+message+']\n')
     magic_exit_code = reduce(operator.add, map(ord, 'CHAPEL')) % 256
     sys.exit(magic_exit_code)
 
-# Attempts to find an appropriate timer to use. The timer must be in
-# util/test/timers/. Expects to be passed a file containing only the name of
-# the timer script. If the file is improperly formatted the default timer is
-# used, and if the timer is not executable or can't be found 'time -p' is used
+
 def GetTimer(f):
+    """
+    Attempts to find an appropriate timer to use. The timer must be in
+    util/test/timers/. Expects to be passed a file containing only the name of
+    the timer script. If the file is improperly formatted the default timer is
+    used, and if the timer is not executable or can't be found 'time -p' is used
+    """
     timersdir = os.path.join(utildir, 'test', 'timers')
     defaultTimer = os.path.join(timersdir, 'defaultTimer')
 
@@ -450,13 +478,16 @@ def GetTimer(f):
 
     return timer
 
-# attempts to find an appropriate .good file. Good files are expected to be of
-# the form basename.<configuration>.<commExecNums>.good. Where configuration
-# options are one of the below configuration specific parameters that are
-# checked for. E.G the current comm layer. commExecNums are the optional
-# compopt and execopt number to enable different .good files for different
-# compopts/execopts with explicitly specifying name.
+
 def FindGoodFile(basename, envCompopts, commExecNums=['']):
+    """
+    Attempts to find an appropriate .good file. Good files are expected to be of
+    the form basename.<configuration>.<commExecNums>.good. Where configuration
+    options are one of the below configuration specific parameters that are
+    checked for. E.G the current comm layer. commExecNums are the optional
+    compopt and execopt number to enable different .good files for different
+    compopts/execopts with explicitly specifying name.
+    """
 
     # Machine name we are running on
     machine=os.uname()[1].split('.', 1)[0]
@@ -498,19 +529,71 @@ def FindGoodFile(basename, envCompopts, commExecNums=['']):
 
     return goodfile
 
+
 def get_exec_log_name(execname, comp_opts_count=None, exec_opts_count=None):
-    """Returns the execution output log name based on number of comp and exec opts."""
+    """
+    Returns the execution output log name based on number of comp and exec opts
+    """
     suffix = '.exec.out.tmp'
     if comp_opts_count is None and exec_opts_count is None:
         return '{0}{1}'.format(execname, suffix)
     else:
         return '{0}.{1}-{2}{3}'.format(execname, comp_opts_count, exec_opts_count, suffix)
 
-# Use testEnv to process skipif files, it works for executable and
-# non-executable versions
+
 def runSkipIf(skipifName):
+    """
+    Use testEnv to process skipif files, it works for executable and
+    non-executable versions
+    """
     skiptest = subprocess.Popen([utildir+'/test/testEnv', './'+skipifName], stdout=subprocess.PIPE).communicate()[0]
     return skiptest
+
+
+def get_chpl_home(compiler):
+    """ Find and return $CHPL_HOME """
+
+    path_to_compiler = os.path.abspath(os.path.dirname(compiler))
+
+    # Assume chpl binary is 2 directory levels down in the base installation
+    (chpl_base, tmp) = os.path.split(path_to_compiler)
+    (chpl_base, tmp) = os.path.split(chpl_base)
+    chpl_base = os.path.normpath(chpl_base)
+
+    # If $CHPL_HOME is not set, use the base installation of the compiler
+    chpl_home = os.getenv('CHPL_HOME', chpl_base);
+    return os.path.normpath(chpl_home)
+
+
+def get_utildir():
+    """
+    Find the test util directory -- set this in start_test to permit
+    a version of start_test other than the one in CHPL_HOME to be used
+    """
+
+    utildir=os.getenv('CHPL_TEST_UTIL_DIR');
+
+    if utildir is None or not os.path.isdir(utildir):
+        Fatal('Cannot find test util directory {0}'.format(utildir))
+
+    # Needed for MacOS mount points
+    return os.path.realpath(utildir)
+
+
+def get_c_compiler(chpl_home):
+    """ Find the c compiler """
+    # We open the compileline inside of CHPL_HOME rather than CHPL_TEST_UTIL_DIR on
+    # purpose. compileline will not work correctly in some configurations when run
+    # outside of its directory tree.
+    p = subprocess.Popen([os.path.join(chpl_home,'util','config','compileline'),
+                            '--compile'],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    c_compiler = p.communicate()[0].rstrip()
+    if p.returncode != 0:
+      Fatal('Cannot find c compiler')
+
+    return c_compiler
+
 
 def parse_args():
     """ Parse command line arguments """
@@ -528,52 +611,22 @@ def parse_args():
 def main(compiler):
     """ sub_test entry point """
 
-    print('compiler:', compiler)
-
-    #if len(sys.argv)!=2:
-    #    print('usage: sub_test COMPILER')
-    #    sys.exit(0)
+    """
+    Check environment
+    """
 
     # Find the base installation
-    #compiler=sys.argv[1]
     if not os.access(compiler,os.R_OK|os.X_OK):
-        Fatal('Cannot execute compiler \''+compiler+'\'')
+        Fatal('Cannot execute compiler \'${0}\''.format(compiler))
 
     is_chpldoc = compiler.endswith('chpldoc')
     is_chpl_ipe = compiler.endswith('chpl-ipe')
 
-    path_to_compiler=os.path.abspath(os.path.dirname(compiler))
-    # Assume chpl binary is 2 directory levels down in the base installation
-    (chpl_base, tmp) = os.path.split(path_to_compiler)
-    (chpl_base, tmp) = os.path.split(chpl_base)
-    chpl_base=os.path.normpath(chpl_base)
-    # sys.stdout.write('CHPL_BASE='+chpl_base+'\n')
+    chpl_home = get_chpl_home(compiler)
 
-    # If $CHPL_HOME is not set, use the base installation of the compiler
-    chpl_home=os.getenv('CHPL_HOME', chpl_base);
-    chpl_home=os.path.normpath(chpl_home)
-    # sys.stdout.write('CHPL_HOME='+chpl_home+'\n');
+    utildir = get_utildir()
 
-    # Find the test util directory -- set this in start_test to permit
-    # a version of start_test other than the one in CHPL_HOME to be used
-    utildir=os.getenv('CHPL_TEST_UTIL_DIR');
-    if utildir is None or not os.path.isdir(utildir):
-        Fatal('Cannot find test util directory {0}'.format(utildir))
-
-    # Needed for MacOS mount points
-    utildir = os.path.realpath(utildir)
-    # sys.stdout.write('utildir='+utildir+'\n');
-
-    # Find the c compiler
-    # We open the compileline inside of CHPL_HOME rather than CHPL_TEST_UTIL_DIR on
-    # purpose. compileline will not work correctly in some configurations when run
-    # outside of its directory tree.
-    p = subprocess.Popen([os.path.join(chpl_home,'util','config','compileline'),
-                            '--compile'],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    c_compiler = p.communicate()[0].rstrip()
-    if p.returncode != 0:
-      Fatal('Cannot find c compiler')
+    c_compiler = get_c_compiler(chpl_home)
 
     # Find the test directory
     testdir=chpl_home+'/test'
@@ -583,7 +636,6 @@ def main(compiler):
             Fatal('Cannot find test directory '+chpl_home+'/test or '+testdir)
     # Needed for MacOS mount points
     testdir = os.path.realpath(testdir)
-    # sys.stdout.write('testdir='+testdir+'\n');
 
     # If user specified a different test directory (e.g. with --test-root flag on
     # start_test), use it instead.
@@ -599,7 +651,6 @@ def main(compiler):
         timedexec=utildir+'/test/timedexec'
         if not os.access(timedexec,os.R_OK|os.X_OK):
             Fatal('Cannot execute timedexec script \''+timedexec+'\'')
-    # sys.stdout.write('timedexec='+timedexec+'\n');
 
     # HW platform
     platform=subprocess.Popen([utildir+'/chplenv/chpl_platform.py', '--target'], stdout=subprocess.PIPE).communicate()[0]
@@ -624,20 +675,18 @@ def main(compiler):
     if os.getenv('CHPL_TEST_UNIQUIFY_EXE') != None:
         uniquifyTests = True
 
+    global localdir
     # Get the current directory (normalize for MacOS case-sort-of-sensitivity)
     localdir = string.replace(os.path.normpath(os.getcwd()), testdir, '.')
-    # sys.stdout.write('localdir=%s\n'%(localdir))
 
     if localdir.find('./') == 0:
         # strip off the leading './'
         localdir = string.lstrip(localdir, '.')
         localdir = string.lstrip(localdir, '/')
-    # sys.stdout.write('localdir=%s\n'%(localdir))
 
     # CHPL_COMM
     chplcomm=os.getenv('CHPL_COMM','none').strip()
     chplcommstr='.comm-'+chplcomm
-    # sys.stdout.write('chplcomm=%s\n'%(chplcomm))
 
     # CHPL_LAUNCHER
     chpllauncher=os.getenv('CHPL_LAUNCHER','none').strip()
@@ -650,6 +699,7 @@ def main(compiler):
     # Test options for all tests in this directory
     #
 
+    global perflabel
     if os.getenv('CHPL_TEST_PERF')!=None:
         perftest=True
         perflabel=os.getenv('CHPL_TEST_PERF_LABEL')
@@ -666,6 +716,10 @@ def main(compiler):
         perftest=False
         perflabel=''
 
+    """
+    Check files
+    """
+
     compoptssuffix = PerfSfx('compopts')  # .compopts or .perfcompopts or ...
 
     # If compiler is chpldoc, use .chpldocopts for options.
@@ -675,7 +729,6 @@ def main(compiler):
     execenvsuffix  = PerfSfx('execenv')   # .execenv  or .perfexecenv  or ...
     execoptssuffix = PerfSfx('execopts')  # .execopts or .perfexecopts or ...
     timeoutsuffix  = PerfSfx('timeout')   # .timeout  or .perftimeout  or ...
-    # sys.stdout.write('perftest=%d perflabel=%s\n'%(perftest,perflabel))
 
     # Get global timeout
     if os.getenv('CHPL_TEST_VGRND_COMP')=='on' or os.getenv('CHPL_TEST_VGRND_EXE')=='on':
@@ -695,7 +748,6 @@ def main(compiler):
         directoryTimeout = ReadIntegerValue('./TIMEOUT', localdir)
     else:
         directoryTimeout = globalTimeout
-    # sys.stdout.write('globalTimeout=%d\n'%(globalTimeout))
 
     # Check for global PERFTIMEEXEC option
     timerFile = PerfDirFile('TIMEEXEC') # e.g. ./PERFTIMEEXEC
@@ -709,35 +761,29 @@ def main(compiler):
         globalKillTimeout = ReadIntegerValue('./KILLTIMEOUT', localdir)
     else:
         globalKillTimeout=10
-    # sys.stdout.write('globalKillTimeout=%d\n'%(globalKillTimeout))
 
     if os.access('./NOEXEC',os.R_OK):
         execute=False
     else:
         execute=True
-    # sys.stdout.write('execute=%d\n'%(execute))
 
     if os.access('./NOVGRBIN',os.R_OK):
         vgrbin=False
     else:
         vgrbin=True
-    # sys.stdout.write('vgrbin=%d\n'%(vgrbin))
 
     if os.access('./COMPSTDIN',os.R_OK):
         compstdin='./COMPSTDIN'
     else:
         compstdin='/dev/null'
-    # sys.stdout.write('compstdin=%s\n'%(compstdin))
 
     globalLastcompopts=list();
     if os.access('./LASTCOMPOPTS',os.R_OK):
         globalLastcompopts+=subprocess.Popen(['cat', './LASTCOMPOPTS'], stdout=subprocess.PIPE).communicate()[0].strip().split()
-    # sys.stdout.write('globalLastcompopts=%s\n'%(globalLastcompopts))
 
     globalLastexecopts=list();
     if os.access('./LASTEXECOPTS',os.R_OK):
         globalLastexecopts+=subprocess.Popen(['cat', './LASTEXECOPTS'], stdout=subprocess.PIPE).communicate()[0].strip().split()
-    # sys.stdout.write('globalLastexecopts=%s\n'%(globalLastexecopts))
 
     if os.access(PerfDirFile('NUMLOCALES'),os.R_OK):
         globalNumlocales=ReadIntegerValue(PerfDirFile('NUMLOCALES'), localdir)
@@ -745,7 +791,6 @@ def main(compiler):
     else:
         # start_test sets this, so we'll assume it's right :)
         globalNumlocales=int(os.getenv('NUMLOCALES', '0'))
-    # sys.stdout.write('globalNumlocales=%s\n'%(globalNumlocales))
 
     maxLocalesAvailable = os.getenv('CHPL_TEST_NUM_LOCALES_AVAILABLE')
     if maxLocalesAvailable is not None:
@@ -756,14 +801,12 @@ def main(compiler):
         globalCatfiles.strip(globalCatfiles)
     else:
         globalCatfiles=None
-    # sys.stdout.write('globalCatfiles=%s\n'%(globalCatfiles))
 
 
     #
     # valgrind stuff
     #
     chpl_valgrind_opts=os.getenv('CHPL_VALGRIND_OPTS', '--tool=memcheck')
-    # sys.stdout.write('chpl_valgrind_opts=%s\n'%(chpl_valgrind_opts))
 
     if os.getenv('CHPL_TEST_VGRND_COMP')=='on':
         valgrindcomp = 'valgrind'
@@ -774,7 +817,6 @@ def main(compiler):
     else:
         valgrindcomp = None
         valgrindcompopts = None
-    # sys.stdout.write('valgrindcomp=%s %s\n'%(valgrindcomp, valgrindcompopts))
 
     if (os.getenv('CHPL_TEST_VGRND_EXE')=='on' and vgrbin):
         valgrindbin = 'valgrind'
@@ -784,7 +826,6 @@ def main(compiler):
     else:
         valgrindbin = None
         valgrindbinopts = None
-    # sys.stdout.write('valgrindbin=%s %s\n'%(valgrindbin, valgrindbinopts))
 
 
     #
@@ -792,20 +833,16 @@ def main(compiler):
     #
 
     testfutures=string.atoi(os.getenv('CHPL_TEST_FUTURES','0'))
-    # sys.stdout.write('testfutures=%s\n'%(testfutures))
 
     testnotests=os.getenv('CHPL_TEST_NOTESTS')
-    # sys.stdout.write('testnotests=%s\n'%(testnotests))
 
     launchcmd=os.getenv('LAUNCHCMD')
-    # sys.stdout.write('launchcmd=%s\n'%(launchcmd))
 
     if os.getenv('CHPL_TEST_INTERP')=='on':
         execute=False
         futureSuffix='.ifuture'
     else:
         futureSuffix='.future'
-    # sys.stdout.write('futureSuffix=%s\n'%(futureSuffix))
 
     printpassesfile = None
     if os.getenv('CHPL_TEST_COMP_PERF')!=None:
@@ -922,7 +959,6 @@ def main(compiler):
     else:
         globalExecopts=list()
     envExecopts = os.getenv('EXECOPTS')
-    # sys.stdout.write('globalExecopts=%s\n'%(globalExecopts))
 
     #
     # Global PRECOMP, PREDIFF & PREEXEC
@@ -936,7 +972,6 @@ def main(compiler):
         globalPrediff='./PREDIFF'
     else:
         globalPrediff=None
-    # sys.stdout.write('globalPrediff=%s\n'%(globalPrediff))
     if os.access('./PREEXEC',os.R_OK|os.X_OK):
         globalPreexec='./PREEXEC'
     else:
@@ -994,11 +1029,9 @@ def main(compiler):
         lastcompopts = list()
         if globalLastcompopts:
             lastcompopts += globalLastcompopts
-        # sys.stdout.write("lastcompopts=%s\n"%(lastcompopts))
         lastexecopts = list()
         if globalLastexecopts:
             lastexecopts += globalLastexecopts
-        # sys.stdout.write("lastexecopts=%s\n"%(lastexecopts))
 
         # Get the list of files starting with 'test_filename.'
         test_filename_files = fnmatch.filter(dirlist, test_filename+'.*')
@@ -1049,7 +1082,6 @@ def main(compiler):
         do_not_test=False
         for f in test_filename_files:
             (root, suffix) = os.path.splitext(f)
-            # sys.stdout.write("**** %s ****\n"%(f))
 
             # 'f' is of the form test_filename.SOMETHING.suffix,
             # not pertinent at the moment
@@ -1128,11 +1160,9 @@ def main(compiler):
 
             elif (suffix=='.lastcompopts' and os.access(f, os.R_OK)):
                 lastcompopts+=subprocess.Popen(['cat', f], stdout=subprocess.PIPE).communicate()[0].strip().split()
-                # sys.stdout.write("lastcompopts=%s\n"%(lastcompopts))
 
             elif (suffix=='.lastexecopts' and os.access(f, os.R_OK)):
                 lastexecopts+=subprocess.Popen(['cat', f], stdout=subprocess.PIPE).communicate()[0].strip().split()
-                # sys.stdout.write("lastexecopts=%s\n"%(lastexecopts))
 
             elif (suffix==PerfSfx('numlocales') and os.access(f, os.R_OK)):
                 numlocales=ReadIntegerValue(f, localdir)
@@ -1527,7 +1557,6 @@ def main(compiler):
                     basename = explicitcompgoodfile.replace('.good', '')
 
                 goodfile = FindGoodFile(basename, envCompopts)
-                # sys.stdout.write('default goodfile=%s\n'%(goodfile))
 
                 if not os.path.isfile(goodfile) or not os.access(goodfile, os.R_OK):
                     if perftest:
@@ -1789,7 +1818,6 @@ def main(compiler):
                     args+=shlex.split(envExecopts)
                 if lastexecopts:
                     args += lastexecopts
-                # sys.stdout.write("args=%s\n"%(args))
 
                 if len(args) >= 2 and '<' in args:
                   redirIdx = args.index('<')
