@@ -1,130 +1,15 @@
 #!/usr/bin/env python
-#
-# Rewrite of sub_test by Sung-Eun Choi (sungeun@cray.com)
-#  sub_test is used by start_test in the Chapel Testing system
-#  August 2009
-#
-# This script can be overridden with a script by the same name
-#  placed in the test directory.
-#
-# The use and behavior of the various environment variables,
-#  settings, and files were copied straight from sub_test.  They
-#  were added/modified to sub_test over the years, and their use
-#  is inconsistent and a bit of a mess.  I like to think that this
-#  is due to the fact that the original sub_test was written in csh,
-#  which was probably pretty novel at the time but is quite limited
-#  by today's standards.  In addition, I implemented the timeout
-#  mechanism directly rather than calling out to the timedexec
-#  (perl) script.
-#
-# For compatibility reasons, I have maintained the behavior of the
-#  original sub_test.  Any new features (e.g., internal timeout
-#  mechanism) or modified behaviors (e.g., multiple .compopts,
-#  multiple .execopts, custom .good files) will not interfere with
-#  the expected behavior of tests that do not use the features or
-#  behaviors.
-#
-#
-# ENVIRONMENT VARIABLES:
-#
-# CHPL_HOME: Grabbed from the environment or deduced based on the path to
-#    the compiler.
-# CHPL_TEST_VGRND_COMP: Use valgrind on the compiler
-# CHPL_TEST_VBRND_EXE: Use valgrind on the test program
-# CHPL_VALGRIND_OPTS: Options to valgrind
-# CHPL_TEST_FUTURES: 2 == test futures only
-#                    1 == test futures and non-futures
-#                    0 == test non-futures only
-# CHPL_TEST_NOTESTS: Test the tests that are marked "notest" (see below)
-# LAUNCHCMD: Uses this command to launch the test program
-# CHPL_TEST_INTERP: DEPRECATED
-# CHPL_TEST_PERF: Run as a performance test (same as -performance flag)
-# CHPL_TEST_PERF_LABEL: The performance label, e.g. "perf"
-# CHPL_TEST_PERF_DIR: Scratch directory for performance data
-# CHPL_TEST_PERF_TRIALS: Default number of trials for perf tests
-# CHPL_ONETEST: Name of the one test in this directory to run
-# CHPL_TEST_SINGLES: If false, test the entire directory
-# CHPL_SYSTEM_PREEXEC: If set, run script on test output prior to execution
-# CHPL_SYSTEM_PREDIFF: If set, run that script on each test output
-# CHPL_COMM: Chapel communication layer
-# CHPL_COMPONLY: Only build the test (same as -noexec flag)
-# CHPL_NO_STDIN_REDIRECT: do not redirect stdin when running tests
-#                         also, skip tests with .stdin files
-# CHPL_LAUNCHER_TIMEOUT: if defined, pass an option/options to the executable
-#                        for it to enforce timeout instead of using timedexec;
-#                        the value of the variable determines the option format.
-# CHPL_TEST_TIMEOUT: The default global timeout to use.
-# CHPL_TEST_UNIQUIFY_EXE: Uniquify the name of the test executable in the test
-#                         system. CAUTION: This wont necessarily work for all
-#                         tests, but can allow for running multiple start_tests
-#                         over a directory in parallel.
-# CHPL_TEST_ROOT_DIR: Absolute path to the test/ dir. Useful when test dir is
-#                     not under $CHPL_HOME. Should not be set when test/ is
-#                     under $CHPL_HOME. When it is set and the path prefixes a
-#                     test in the logs, it will be removed (from the logs).
-#
-#
-# DIRECTORY-WIDE FILES:  These settings are for the entire directory and
-#  in many cases can be overridden or augmented with test-specific settings.
-#
-# NOEXEC: Do not execute tests in this directory
-# NOVGRBIN: Do not execute valgrind
-# COMPSTDIN: Get stdin from this file (default /dev/null)
-# COMPOPTS: Compiler flags
-# LASTCOMPOPTS: Compiler flags to be put at the end of the command line
-# CHPLDOCOPTS: chpldoc flags
-# EXECENV: Environment variables to be applied to the entire directory
-# EXECOPTS: Test program flags to be applied to the entire directory
-# LASTEXECOPTS: Test program flags to be put at the end of the command line
-# NUMLOCALES: Number of locales to use
-# CATFILES: List of files whose contents are added to end of test output
-# PREDIFF: Script to execute before diff'ing output (arguments: <test
-#    executable>, <log>, <compiler executable>)
-# PREEXEC: Script to execute before executing test program (arguments: <test
-#    executable>, <log>, <compiler executable>)
-# PRECOMP: Script to execute before running the compiler (arguments: <test
-#    executable>, <log>, <compiler executable>).
-# PERFNUMTRIALS: Number of trials to run for performance testing
-#
-#
-# TEST-SPECIFIC FILES:  These setting override or augment the directory-wide
-#  settings.  Unless otherwise specified, these files are named
-#  <test executable>.suffix (where suffix is one of the following).
-#
-# .good: "Golden" output file (can have different basenames)
-# .compenv: Additional environment variables for the compile
-# .compopts: Additional compiler options
-# .perfcompenv: Additional environment variables for performance compiling
-# .perfcompopts: Additional compiler options for performance testing
-# .lastcompopts: Additional compiler options to be added at the end of the
-#    command line
-# .chpldocopts: Additional chpldoc options.
-# .execenv: Additional environment variables for the test
-# .execopts: Additional test options
-# .perfexecenv: Additional environment variables for performance testing
-# .perfexecopts: Additional test options for performance testing
-# .perfnumtrials: Number of trials to run for performance testing
-# .notest: Do not run this test
-# .numlocales: Number of locales to use (overrides NUMLOCALES)
-# .future: Future test
-# .ifuture: Future test
-# .noexec: Do not execute this test
-# .skipif: Skip this test if certain environment conditions hold true
-# .suppressif: Suppress this test if certain environment conditions hold true
-# .timeout: Test timeout (overrides TIMEOUT)
-# .perftimeout: Performance test timeout
-# .killtimeout: Kill timeout (overrides KILLTIMEOUT)
-# .catfiles: Additional list of files whose contents are added to end of
-#    test output
-# .precomp: Additional script to execute before compiling the test
-# .prediff: Additional script to execute before diff'ing output
-# .preexec: Additional script to execute before executing test program
-# .perfkeys: Existence indicates a performance test.  Contents specifies
-#    performance "keys"
-#
-# In general, the performance label from CHPL_TEST_PERF_LABEL is used
-# instead of "perf" in the above suffixes, and its all-caps version is used
-# in the all-caps file names instead "PERF".
+"""
+ sub_test is used by start_test in the Chapel Testing system
+
+ sub_test interacts with start_test almost exclusively through the environment
+ that start_test sets up. The exception is the path to a binary  passed as a
+ command line argument, which sub_test uses both to run the given test and
+ infer the location of other paths, such as $CHPL_HOME.
+
+ This script can be overridden with a script by the same name
+ placed in the test directory.
+"""
 
 from __future__ import with_statement, print_function
 
@@ -141,6 +26,7 @@ from atexit import register
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 
+# TODO -- no globals
 # Globals
 perflabel = ''
 localdir = ''
@@ -608,32 +494,26 @@ def parse_args():
     return parser.parse_args()
 
 
-def main(compiler):
-    """ sub_test entry point """
-
-    """
-    Check environment
-    """
-
+def get_compilerkey(compiler):
     # Find the base installation
     if not os.access(compiler,os.R_OK|os.X_OK):
         Fatal('Cannot execute compiler \'${0}\''.format(compiler))
 
-    is_chpldoc = compiler.endswith('chpldoc')
-    is_chpl_ipe = compiler.endswith('chpl-ipe')
+    compilerkey = 'chpl'
+    if compiler.endswith('chpldoc'):
+        return 'chpldoc'
+    elif compiler.endswith('chpl-ipe'):
+        return 'chpl-ipe'
 
-    chpl_home = get_chpl_home(compiler)
 
-    utildir = get_utildir()
+def get_testdir(chpl_home):
+    """ Find the test directory """
 
-    c_compiler = get_c_compiler(chpl_home)
-
-    # Find the test directory
-    testdir=chpl_home+'/test'
-    if os.path.isdir(testdir)==0:
-        testdir=chpl_home+'/examples'
-        if os.path.isdir(testdir)==0:
-            Fatal('Cannot find test directory '+chpl_home+'/test or '+testdir)
+    testdir = chpl_home + '/test'
+    if os.path.isdir(testdir) == 0:
+        testdir = chpl_home + '/examples'
+        if os.path.isdir(testdir) == 0:
+            Fatal('Cannot find test directory ' + chpl_home + '/test or ' + testdir)
     # Needed for MacOS mount points
     testdir = os.path.realpath(testdir)
 
@@ -642,6 +522,34 @@ def main(compiler):
     test_root_dir = os.environ.get('CHPL_TEST_ROOT_DIR')
     if test_root_dir is not None:
         testdir = test_root_dir
+
+    return testdir
+
+
+def timedexec():
+    """ Note: This change should be tested and merged separately"""
+    pass
+
+
+
+def main(compiler):
+    """
+    sub_test entry point, called from start_test
+    """
+
+    """
+    Check environment
+    """
+
+    compilerkey = get_compilerkey(compiler)
+
+    chpl_home = get_chpl_home(compiler)
+
+    utildir = get_utildir()
+
+    c_compiler = get_c_compiler(chpl_home)
+
+    testdir = get_testdir(chpl_home)
 
     # Use timedexec
     # As much as I hate calling out to another script for the time out stuff,
@@ -1018,7 +926,7 @@ def main(compiler):
 
         # If the test name ends with .doc.chpl or the compiler was set to chpldoc
         # (i.e. is_chpldoc=True), run this test with chpldoc options.
-        if testname.endswith('.doc.chpl') or is_chpldoc:
+        if testname.endswith('.doc.chpl') or compilerkey == 'chpldoc':
             test_is_chpldoc = True
         else:
             test_is_chpldoc = False
@@ -1051,7 +959,7 @@ def main(compiler):
             timer = None
         futuretest=''
 
-        if test_is_chpldoc or is_chpl_ipe:
+        if test_is_chpldoc or compilerkey == 'chpl-ipe':
             executebin = False
         else:
             executebin = execute
@@ -1192,7 +1100,7 @@ def main(compiler):
                 else:
                     # chpl-ipe only has a "compile" step, so any stdin needs to be
                     # passed to compiler.
-                    if is_chpl_ipe:
+                    if compilerkey == 'chpl-ipe':
                         compstdin = f
                     else:
                         redirectin = f
@@ -1376,7 +1284,7 @@ def main(compiler):
             args = []
             if test_is_chpldoc:
                 args += globalChpldocOpts + shlex.split(compopts)
-            elif is_chpl_ipe:
+            elif compilerkey == 'chpl-ipe':
                 # No arguments work for chpl-ipe as of 2015-04-08. (thomasvandoren)
                 # TODO: When chpl-ipe does support command line flags, decide if it
                 #       will use COMPOPTS/.compopts or some other filename.
