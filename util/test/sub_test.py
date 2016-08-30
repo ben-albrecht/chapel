@@ -534,17 +534,25 @@ def get_testdir(chpl_home):
     return testdir
 
 
-def run(cmd, timeout=None):
-    """Run a command, with an optional timeout"""
+def run_proc(cmd, stdout=PIPE, stderr=PIPE, timeout=None, **kwargs):
+    """ Run command and return the process object """
     splitcmd = shlex.split(cmd)
-    p = Popen(splitcmd, stdout=PIPE, stderr=PIPE)
+    p = Popen(splitcmd, stdout=PIPE, stderr=PIPE, **kwargs)
+
+    # Timeout logic, derived from subprocess.call() implementation
     try:
-        exitcode = p.wait(timeout=timeout)
-        return p.communicate()
+        p.wait(timeout=timeout)
+        return p
     except:
         p.kill()
         p.wait()
         raise
+
+
+def run(cmd, **kwargs):
+    """Run a command, with an optional timeout, return the process output"""
+    proc = run_proc(cmd, **kwargs)
+    return proc.communicate()
 
 
 def main(compiler):
@@ -566,14 +574,8 @@ def main(compiler):
 
     testdir = get_testdir(chpl_home)
 
-    # Use timedexec
-    # As much as I hate calling out to another script for the time out stuff,
-    #  subprocess doesn't quite cut it for this kind of stuff
+    # Use timer on execution/compilation
     useTimedExec=True
-    if useTimedExec:
-        timedexec=utildir+'/test/timedexec'
-        if not os.access(timedexec,os.R_OK|os.X_OK):
-            Fatal('Cannot execute timedexec script \''+timedexec+'\'')
 
     # HW platform
     platform_cmd = os.path.join(utildir, 'chplenv/chpl_platform.py') + ' --target'
@@ -704,11 +706,11 @@ def main(compiler):
 
     globalLastcompopts=list();
     if os.access('./LASTCOMPOPTS',os.R_OK):
-        globalLastcompopts+=Popen(['cat', './LASTCOMPOPTS'], stdout=PIPE).communicate()[0].strip().split()
+        globalLastcompopts += run('cat ./LASTCOMPOPTS')[0].strip().split()
 
     globalLastexecopts=list();
     if os.access('./LASTEXECOPTS',os.R_OK):
-        globalLastexecopts+=Popen(['cat', './LASTEXECOPTS'], stdout=PIPE).communicate()[0].strip().split()
+        globalLastexecopts += run('cat ./LASTEXECOPTS')[0].strip().split()
 
     if os.access(PerfDirFile('NUMLOCALES'),os.R_OK):
         globalNumlocales=ReadIntegerValue(PerfDirFile('NUMLOCALES'), localdir)
@@ -1362,11 +1364,13 @@ def main(compiler):
             sys.stdout.flush()
             if useTimedExec:
                 wholecmd = cmd+' '+' '.join(map(ShellEscape, args))
-                p = Popen([timedexec, str(comptimeout), wholecmd],
-                                     env=dict(os.environ.items() + testcompenv.items()),
-                                     stdin=open(compstdin, 'r'),
-                                     stdout=PIPE,
-                                     stderr=STDOUT)
+                p = run_proc(wholecmd,
+                             stderr=STDOUT,
+                             timeout=comptimeout,
+                             env=dict(os.environ.items() + testcompenv.items()),
+                             stdin=open(compstdin, 'r')
+                            )
+
                 output = p.communicate()[0]
                 status = p.returncode
 
@@ -1827,11 +1831,12 @@ def main(compiler):
                                 my_stdin = sys.stdin
                             else:
                                 my_stdin = file(redirectin, 'r')
-                            p = Popen([timedexec, str(timeout), wholecmd],
-                                                env=dict(os.environ.items() + testenv.items()),
-                                                stdin=my_stdin,
-                                                stdout=PIPE,
-                                                stderr=STDOUT)
+                            p = run_proc(wholecmd,
+                                         stderr=STDOUT,
+                                         stdin=my_stdin,
+                                         timeout=timeout,
+                                         env=dict(os.environ.items() + testenv.items())
+                                        )
                             output = p.communicate()[0]
                             status = p.returncode
 
