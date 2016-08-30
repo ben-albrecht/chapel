@@ -43,12 +43,12 @@ class FileLock():
     # is taking a while to run. see #3928 for why the times/backoff were chosen
     sleep_time = .02
     def _backoff_sleep(self, max_sleep=.5, backoff_factor=1.3):
-	time.sleep(self.sleep_time)
-	if self.sleep_time < max_sleep:
-	    self.sleep_time *= backoff_factor
-   
+        time.sleep(self.sleep_time)
+        if self.sleep_time < max_sleep:
+            self.sleep_time *= backoff_factor
+
     def __init__(self, exec_name, exec_timeout):
-	lock_name = '{0}-chpl_program_executing'.format(getpass.getuser())
+        lock_name = '{0}-chpl_program_executing'.format(getpass.getuser())
         self.lock_file = os.path.join(tempfile.gettempdir(), lock_name)
         self.exec_name = exec_name
         self.exec_timeout = exec_timeout
@@ -83,25 +83,25 @@ class FileLock():
     # up the locking file, we'll continue if the lock hasn't been
     # modified in the other test's timeout value.
     def _lock(self):
-	modified = 0
-	other_timeout = 1
-	while os.path.exists(self.lock_file) and modified < other_timeout:
+        modified = 0
+        other_timeout = 1
+        while os.path.exists(self.lock_file) and modified < other_timeout:
             modified, other_filename, other_timeout = self._parse_lock_file()
             log_info('"{0}" is waiting at most {1}s for "{2}" (started {3:.1f}s '
                      'ago) to finish executing'.format(
                      self.exec_name, other_timeout, other_filename, modified))
             self._backoff_sleep()
 
-	# actually grab the "lock" by creating the file
+        # actually grab the "lock" by creating the file
         log_info('Grabbing exec-lock for "{0}"'.format(self.exec_name))
-	with open(self.lock_file, 'w') as f:
-	    f.write('{0}\n{1}\n'.format(self.exec_name, self.exec_timeout))
+        with open(self.lock_file, 'w') as f:
+            f.write('{0}\n{1}\n'.format(self.exec_name, self.exec_timeout))
 
 
     def _unlock(self):
-	try:
-	    # release the "lock" by removing the file
+        try:
+            # release the "lock" by removing the file
             log_info('Releasing exec-lock for "{0}"'.format(self.exec_name))
-	    os.remove(self.lock_file)
-	except:
-	    pass
+            os.remove(self.lock_file)
+        except:
+            pass
