@@ -103,7 +103,7 @@ proc linearSearch(Data:[?Dom], val, comparator:?rec=defaultComparator, lo=Dom.lo
 
   chpl_check_comparator(comparator, Data.eltType);
 
-  const stride = if Dom.stridable then abs(Dom.stride) else 1;
+  const stride = abs(Dom.stride);
   // Domain slicing is cheap, but avoiding it when possible helps performance
   if lo == Dom.low && hi == Dom.high {
     for i in Dom {
@@ -111,7 +111,7 @@ proc linearSearch(Data:[?Dom], val, comparator:?rec=defaultComparator, lo=Dom.lo
         return (true, i);
     }
   } else {
-    const r = if Dom.stridable then lo..hi by stride else lo..hi;
+    const r = lo..hi by stride;
     for i in Dom[r] {
       if chpl_compare(Data[i], val, comparator=comparator) == 0 then
         return (true, i);
@@ -119,6 +119,33 @@ proc linearSearch(Data:[?Dom], val, comparator:?rec=defaultComparator, lo=Dom.lo
   }
 
   return (false, Dom.high+stride);
+}
+
+
+pragma "no doc"
+/* Non-stridable linearSearch */
+proc linearSearch(Data:[?Dom], val, comparator:?rec=defaultComparator, lo=Dom.low, hi=Dom.high) 
+  where !Dom.stridable {
+  if Dom.rank != 1 then
+    compilerError("linearSearch() requires 1-D array");
+
+  chpl_check_comparator(comparator, Data.eltType);
+
+  // Domain slicing is cheap, but avoiding it when possible helps performance
+  if lo == Dom.low && hi == Dom.high {
+    for i in Dom {
+      if chpl_compare(Data[i], val, comparator=comparator) == 0 then
+        return (true, i);
+    }
+  } else {
+    const r = lo..hi;
+    for i in Dom[r] {
+      if chpl_compare(Data[i], val, comparator=comparator) == 0 then
+        return (true, i);
+    }
+  }
+
+  return (false, Dom.high+1);
 }
 
 
@@ -181,16 +208,14 @@ proc binarySearch(Data:[?Dom], val, comparator:?rec=defaultComparator, in lo=Dom
 
   chpl_check_comparator(comparator, Data.eltType);
 
-  param stride = 1;
-
   while (lo <= hi) {
     const mid = (hi - lo)/2 + lo;
     if chpl_compare(Data[mid], val, comparator=comparator) == 0 then
         return (true, mid);
     else if chpl_compare(val, Data[mid], comparator=comparator) > 0 then
-      lo = mid + stride;
+      lo = mid + 1;
     else
-      hi = mid - stride;
+      hi = mid - 1;
   }
   return (false, lo);
 }
