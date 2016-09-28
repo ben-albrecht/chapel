@@ -31,11 +31,6 @@ module VisualDebug
 
   use String;
 
-  /*
-    This is the default setting for :var:`VisualDebugOn`.  It defaults
-    to `true`, but can be changed at compile time.
-  */
-  config param DefaultVisualDebugOn = true;
 
   /*
     If this is `true`, data collection to support :ref:`chplvis` reporting is
@@ -43,7 +38,7 @@ module VisualDebug
     It defaults to the value of :param:`DefaultVisualDebugOn`, but can
     be changed at execution time.
   */
-  config const VisualDebugOn = DefaultVisualDebugOn;
+  config const VisualDebugOn = true;
 
   private extern proc chpl_now_time():real;
 
