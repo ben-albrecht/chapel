@@ -6,7 +6,7 @@ SPHINXBUILD   = sphinx-build
 PAPER         =
 SOURCEDIR     = .
 BUILDDIR      = ../build/doc
-BUILDPATH     = $$CHPL_HOME/doc/$(BUILDDIR)
+BUILDPATH     = $$CHPL_HOME/build/doc
 
 # Explicitly set author
 export CHPLDOC_AUTHOR=Cray Inc
