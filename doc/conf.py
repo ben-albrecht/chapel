@@ -35,6 +35,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinxcontrib.chapeldomain',
     'util.disguise',
+    'util.dropdown',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
