@@ -63,6 +63,13 @@ void AstDumpToHtml::init() {
   fprintf(sIndexFP, "<TITLE> Compilation Dump </TITLE>\n");
   fprintf(sIndexFP, "<SCRIPT SRC=\"http://chapel.cray.com/developer/mktree.js\" LANGUAGE=\"JavaScript\"></SCRIPT>");
   fprintf(sIndexFP, "<LINK REL=\"stylesheet\" HREF=\"http://chapel.cray.com/developer/mktree.css\">");
+  fprintf(sIndexFP, "<style>\n");
+  fprintf(sIndexFP, "body {\n");
+  fprintf(sIndexFP, "  font-family: Consolas;\n");
+  fprintf(sIndexFP, "  background: #FFFFFF;\n");
+  fprintf(sIndexFP, "  100%% !important;\n");
+  fprintf(sIndexFP, "}\n");
+  fprintf(sIndexFP, "</style>\n");
   fprintf(sIndexFP, "</HEAD>\n");
   fprintf(sIndexFP, "<div style=\"text-align: center;\"><big><big><span style=\"font-weight: bold;\">");
   fprintf(sIndexFP, "Compilation Dump<br><br></span></big></big>\n");
@@ -124,6 +131,13 @@ bool AstDumpToHtml::open(ModuleSymbol* module, const char* passName) {
     fprintf(mFP, "<TITLE> AST for Module %s after Pass %s </TITLE>\n", module->name, passName);
     fprintf(mFP, "<SCRIPT SRC=\"http://chapel.cray.com/developer/mktree.js\" LANGUAGE=\"JavaScript\"></SCRIPT>\n");
     fprintf(mFP, "<LINK REL=\"stylesheet\" HREF=\"http://chapel.cray.com/developer/mktree.css\">\n");
+    fprintf(mFP, "<style>\n");
+    fprintf(mFP, "body {\n");
+    fprintf(mFP, "  font-family: Consolas;\n");
+    fprintf(mFP, "  background: #FFFFFF;\n");
+    fprintf(mFP, "  100%% !important;\n");
+    fprintf(mFP, "}\n");
+    fprintf(mFP, "</style>\n");
     fprintf(mFP, "</HEAD><BODY%s>\n",
            fdump_html_wrap_lines ? "" : " style=\"white-space: nowrap;\"");
 
