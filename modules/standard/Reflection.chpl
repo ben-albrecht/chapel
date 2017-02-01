@@ -1,15 +1,15 @@
 /*
  * Copyright 2004-2017 Cray Inc.
  * Other additional copyright holders may be indicated within.
- * 
+ *
  * The entirety of this work is licensed under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
- * 
+ *
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,10 +24,13 @@
    .. note ::
 
      There are several ways in which this module could be improved upon:
-     
+
        * the methods here might be better as type methods,
          so you could use `R.numFields()` instead of `numFields(R)`.
        * :proc:`getField` does not yet return a mutable value.
+       * ``getFields`` and ``getMethods`` could return an array of
+         records containing the meta-data on each field and method,
+         respectively.
 */
 module Reflection {
 
@@ -36,6 +39,53 @@ module Reflection {
  */
 proc numFields(type t) param : int
   return __primitive("num fields", t);
+
+
+// TODO -- is there a way to not include non user-defined methods?
+/* Return the number of methods in a class or record as a param.
+   The count of methods includes initializers, readThis, and writeThis
+   methods
+ */
+proc numMethods(x) param : int
+  return __primitive("num methods", x);
+
+
+/* Get the name of the ith method in a class or record.
+   Causes a compilation error if `i` is not in 1..numMethods(t).
+
+   :arg t: a class or record type
+   :arg i: which field to get the name of
+   :returns: the name of the field, as a param string
+ */
+proc getMethodName(x, param i:int) param : string
+  return __primitive("method num to name", x, i);
+
+
+// TODO -- is not supporting arguments too much of a kludge?
+/* Call the method of the ith method in a class or record with no arguments.
+   Causes a compilation error if `i` is not in 1..numMethods(t) or
+   if the argument-less method cannot be resolved on the instance.
+
+   :arg x: instance of a class or record type
+   :arg i: which field to get the name of
+   :returns: the name of the field, as a param string
+ */
+proc callMethod(x, param i:int) param
+  return __primitive("method num to name", x, i);
+
+
+// TODO -- is not supporting arguments too much of a kludge?
+/* Call the method named `s` in a class or record with no arguments.
+   Causes a compilation error if the argument-less method cannot be resolved on
+   the instance.
+
+   :arg x: instance of a class or record type
+   :arg i: which field to get the name of
+   :returns: the name of the field, as a param string
+ */
+proc callMethod(x, param s:string) param
+  return __primitive("call method by name", x, s);
+
 
 /* Get the name of the ith field in a class or record.
    Causes a compilation error if `i` is not in 1..numFields(t).
@@ -152,7 +202,7 @@ proc canResolveMethod(obj, param fname : string, args ...) param : bool
    */
 proc canResolveTypeMethod(type t, param fname : string) param : bool
   return __primitive("method call resolves", t, fname);
- 
+
 /* Returns true if a type method named `fname` taking the
    arguments in `args` could be called on type `t` in the current scope.
    */

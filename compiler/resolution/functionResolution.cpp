@@ -7013,6 +7013,122 @@ preFold(Expr* expr) {
       }
       result = new SymExpr(new_StringSymbol(name));
       call->replace(result);
+    } else if (call->isPrimitive(PRIM_FIELD_NAME_TO_NUM)) {
+      AggregateType* classtype =
+        toAggregateType(toSymExpr(call->get(1))->symbol()->type);
+      INT_ASSERT( classtype != NULL );
+      classtype = toAggregateType(classtype->getValType());
+      INT_ASSERT( classtype != NULL );
+
+      VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
+      INT_ASSERT( var != NULL );
+
+      Immediate* imm = var->immediate;
+
+      INT_ASSERT( classtype != NULL );
+      // fail horribly if immediate is not a string .
+      INT_ASSERT(imm->const_kind == CONST_KIND_STRING);
+
+      const char* fieldname = imm->v_string;
+      int fieldcount = 0;
+      int num = 0;  // return 0 if the field is not found.
+      for_fields(field, classtype) {
+        if( ! isNormalField(field) ) continue;
+
+        fieldcount++;
+        if ( 0 == strcmp(field->name,  fieldname) ) {
+          num = fieldcount;
+          // break could be here, but might have issues with GCC 5.10
+        }
+      }
+      result = new SymExpr(new_IntSymbol(num));
+
+      call->replace(result);
+
+
+    } else if (call->isPrimitive(PRIM_NUM_METHODS)) {
+
+      Type* type = call->get(1)->getValType();
+
+      int methodcount = 0;
+
+      // TODO -- This does not capture methods on generic record/classes
+      // Probably need some special checks...
+      forv_Vec(FnSymbol, fn, type->methods) {
+        methodcount++;
+      }
+
+      result = new SymExpr(new_IntSymbol(methodcount));
+
+      call->replace(result);
+
+    } else if (call->isPrimitive(PRIM_METHOD_NUM_TO_NAME)) {
+      // Assumes concrete (non-generic)
+      Type* type = call->get(1)->getValType();
+      INT_ASSERT( type != NULL );
+
+      VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
+      INT_ASSERT( var != NULL );
+
+      int methodnum = var->immediate->int_value();
+      int methodcount = 0;
+      const char* name = NULL;
+
+      forv_Vec(FnSymbol, fn, type->methods) {
+        methodcount++;
+        if (methodcount == methodnum) {
+          name = fn->name;
+          // break could be here, but might have issues with GCC 5.10
+        }
+      }
+
+      if (!name) {
+        USR_FATAL(call, "'%d' is not a valid field number for %s", methodnum,
+                  toString(type));
+      }
+
+      result = new SymExpr(new_StringSymbol(name));
+
+      call->replace(result);
+    } else if (call->isPrimitive(PRIM_CALL_METHOD_BY_NAME)) {
+      // TODO
+
+
+      // Assumes concrete (non-generic)
+      Type* type = call->get(1)->getValType();
+      INT_ASSERT( type != NULL );
+
+      VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
+      INT_ASSERT( var != NULL );
+
+      // name of field converted to index
+      // Instead, I want to find methods with substring
+      VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
+      INT_ASSERT( var != NULL );
+
+      Immediate* imm = var->immediate;
+      // fail horribly if immediate is not a string
+      INT_ASSERT(imm->const_kind == CONST_KIND_STRING);
+
+      const char* methodname = imm->v_string;
+      int methodcount = 0;
+      int methodnum = 0;
+
+      forv_Vec(FnSymbol, fn, type->methods) {
+        if (methodcount == methodnum) {
+          methodnum++;
+          if (0 == strcmp(fn->name,  methodname)) {
+            methodnum = methodcount;
+            // break could be here, but might have issues with GCC 5.10
+          }
+        }
+      }
+
+      // TODO -- call method here, and store result in call
+      // How can I call a method with a CallExpr?
+      //result = new CallExpr(PRIM_GET_MEMBER, call->get(1)->copy(),
+      //                      new_CStringSymbol(name));
+      call->replace(result);
     } else if (call->isPrimitive(PRIM_FIELD_BY_NUM)) {
       // if call->get(1) is a reference type, dereference it
       AggregateType* classtype = toAggregateType(call->get(1)->typeInfo());
@@ -7020,6 +7136,7 @@ preFold(Expr* expr) {
       classtype = toAggregateType(classtype->getValType());
       INT_ASSERT( classtype != NULL );
 
+      // name of field converted to index
       VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
 
       INT_ASSERT( var != NULL );
@@ -7037,13 +7154,6 @@ preFold(Expr* expr) {
           // break could be here, but seems to cause issues with GCC 5.10
         }
       }
-      if (!name) {
-        USR_FATAL(call, "'%d' is not a valid field number for %s", fieldnum,
-                  toString(classtype));
-      }
-      result = new CallExpr(PRIM_GET_MEMBER, call->get(1)->copy(),
-                            new_CStringSymbol(name));
-      call->replace(result);
     } else if (call->isPrimitive(PRIM_FIELD_NAME_TO_NUM)) {
       AggregateType* classtype =
         toAggregateType(toSymExpr(call->get(1))->symbol()->type);

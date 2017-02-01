@@ -651,6 +651,13 @@ initPrimitive() {
 
   prim_def(PRIM_VIRTUAL_METHOD_CALL, "virtual method call", returnInfoVirtualMethodCall, true, true);
 
+  prim_def(PRIM_NUM_METHODS, "num methods", returnInfoInt32);
+  // Maybe rename: METHOD_CALL_BY_NAME?
+  prim_def(PRIM_CALL_METHOD_BY_NAME, "call method by name", returnInfoUnknown);
+  //prim_def(PRIM_CALL_METHOD_BY_NUM, "call method by num", returnInfoUnknown);
+  prim_def(PRIM_METHOD_NUM_TO_NAME, "method num to name", returnInfoString);
+  //prim_def(PRIM_METHOD_NAME_TO_NUM, "method name to num", returnInfoInt32);
+
   prim_def(PRIM_NUM_FIELDS, "num fields", returnInfoInt32);
   prim_def(PRIM_FIELD_NUM_TO_NAME, "field num to name", returnInfoString);
   prim_def(PRIM_FIELD_NAME_TO_NUM, "field name to num", returnInfoInt32);
