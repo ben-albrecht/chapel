@@ -7136,7 +7136,6 @@ preFold(Expr* expr) {
       classtype = toAggregateType(classtype->getValType());
       INT_ASSERT( classtype != NULL );
 
-      // name of field converted to index
       VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
 
       INT_ASSERT( var != NULL );
@@ -7154,6 +7153,13 @@ preFold(Expr* expr) {
           // break could be here, but seems to cause issues with GCC 5.10
         }
       }
+      if (!name) {
+        USR_FATAL(call, "'%d' is not a valid field number for %s", fieldnum,
+                  toString(classtype));
+      }
+      result = new CallExpr(PRIM_GET_MEMBER, call->get(1)->copy(),
+                            new_CStringSymbol(name));
+      call->replace(result);
     } else if (call->isPrimitive(PRIM_FIELD_NAME_TO_NUM)) {
       AggregateType* classtype =
         toAggregateType(toSymExpr(call->get(1))->symbol()->type);
