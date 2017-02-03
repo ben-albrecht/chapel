@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 #
-# Test CHPL_COMM=none && CHPL_TARGET_COMPILER=mpi-gnu for MPI module testing
+# Test CHPL_COMM=gasnet && CHPL_TARGET_COMPILER=mpi-gnu for MPI module testing
 #
 # CHPL_TARGET_COMPILER=mpi-gnu
 # CHPL_TASKS=fifo
-# CHPL_COMM=none
+# CHPL_COMM=gasnet
+# CHPL_COMM_SUBSTRATE=mpi
 
 # Setting up MPICH:
-# Access MPICH on chapcs:
 # module use /usr/share/modules/
 # module load modulefiles/mpi
 # MPICH_MAX_THREAD_SAFETY=multiple
+# AMMPI_MPI_THREAD=multiple
 
-# TESTS_TO_RUN=test/release/:test/release/modules/packages/MPI/multilocale
+# TESTS_TO_RUN=test/release/:test/release/modules/packages/MPI/spmd
 
 
 CWD=$(cd $(dirname $0) ; pwd)
