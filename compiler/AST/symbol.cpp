@@ -345,6 +345,53 @@ SymExpr* Symbol::lastSymExpr() const {
   return symExprsTail;
 }
 
+int Symbol::countDefs(int max) const {
+  int ret = 0;
+  for_SymbolDefs(def, this) {
+    ret += 1;
+    if (ret >= max) break;
+  }
+  return ret;
+}
+
+int Symbol::countUses(int max) const {
+  int ret = 0;
+  for_SymbolUses(use, this) {
+    ret += 1;
+    if (ret >= max) break;
+  }
+  return ret;
+}
+
+bool Symbol::isUsed() const {
+  return (this->countUses(1) >= 1);
+}
+
+bool Symbol::isDefined() const {
+  return (this->countDefs(1) >= 1);
+}
+
+SymExpr* Symbol::getSingleUse() const {
+  SymExpr* ret = NULL;
+  for_SymbolUses(use, this) {
+    if (ret != NULL) return NULL;
+    ret = use;
+  }
+  return ret;
+}
+
+SymExpr* Symbol::getSingleDef() const {
+  SymExpr* ret = NULL;
+  for_SymbolDefs(def, this) {
+    if (ret != NULL) return NULL;
+    ret = def;
+  }
+  return ret;
+}
+
+
+
+
 bool Symbol::isImmediate() const {
   return false;
 }
@@ -818,6 +865,87 @@ void TypeSymbol::accept(AstVisitor* visitor) {
 
     visitor->exitTypeSym(this);
   }
+}
+
+void TypeSymbol::renameInstantiatedMulti(SymbolMap& subs, FnSymbol* fn) {
+  renameInstantiatedStart();
+
+  bool notFirst = false;
+  for_formals(formal, fn) {
+    if (Symbol* value = subs.get(formal)) {
+      if (!notFirst) {
+        if (TypeSymbol* ts = toTypeSymbol(value)) {
+          if (this->hasFlag(FLAG_TUPLE)) {
+            if (this->hasFlag(FLAG_STAR_TUPLE)) {
+              this->name = astr(istr(fn->numFormals()-1), "*", ts->name);
+              this->cname = astr(this->cname, "star_", ts->cname);
+              return;
+            } else {
+              this->name = astr("(");
+            }
+          }
+        }
+        notFirst = true;
+      } else {
+        this->name = astr(this->name, ",");
+        this->cname = astr(this->cname, "_");
+      }
+      renameInstantiatedIndividual(value);
+    }
+  }
+
+  renameInstantiatedEnd();
+}
+
+void TypeSymbol::renameInstantiatedStart() {
+  if (this->name[strlen(this->name)-1] == ')') {
+    // avoid "strange" instantiated type names based on partial instantiation
+    //  instead of C(int,real)(imag) this results in C(int,real,imag)
+    char* buf = (char*)malloc(strlen(this->name) + 1);
+    memcpy(buf, this->name, strlen(this->name));
+    buf[strlen(this->name)-1] = '\0';
+    this->name = astr(buf, ",");
+    free(buf);
+  } else {
+    this->name = astr(this->name, "(");
+  }
+  this->cname = astr(this->cname, "_");
+}
+
+void TypeSymbol::renameInstantiatedIndividual(Symbol* sym) {
+  if (TypeSymbol* ts = toTypeSymbol(sym)) {
+    if (!this->hasFlag(FLAG_STAR_TUPLE)) {
+      this->name = astr(this->name, ts->name);
+      this->cname = astr(this->cname, ts->cname);
+    }
+  } else {
+    VarSymbol* var = toVarSymbol(sym);
+    if (var && var->immediate) {
+      Immediate* immediate = var->immediate;
+      if (var->type == dtString || var->type == dtStringC)
+        renameInstantiatedTypeString(this, var);
+      else if (immediate->const_kind == NUM_KIND_BOOL) {
+        // Handle boolean types specially.
+        const char* name4bool = immediate->bool_value() ? "true" : "false";
+        const char* cname4bool = immediate->bool_value() ? "T" : "F";
+        this->name = astr(this->name, name4bool);
+        this->cname = astr(this->cname, cname4bool);
+      } else {
+        const size_t bufSize = 128;
+        char imm[bufSize];
+        snprint_imm(imm, bufSize, *var->immediate);
+        this->name = astr(this->name, imm);
+        this->cname = astr(this->cname, imm);
+      }
+    } else {
+      this->name = astr(this->name, sym->cname);
+      this->cname = astr(this->cname, sym->cname);
+    }
+  }
+}
+
+void TypeSymbol::renameInstantiatedEnd() {
+  this->name = astr(this->name, ")");
 }
 
 /************************************* | **************************************
@@ -1478,7 +1606,7 @@ int FnSymbol::hasGenericFormals() const {
     if (isGeneric == true) {
       hasGenericFormal = true;
 
-      if (formal->defaultExpr == false) {
+      if (formal->defaultExpr == NULL) {
         hasGenericDefaults = false;
       }
     }
@@ -2287,6 +2415,7 @@ static int literal_id = 1;
 HashMap<Immediate *, ImmHashFns, VarSymbol *> uniqueConstantsHash;
 HashMap<Immediate *, ImmHashFns, VarSymbol *> stringLiteralsHash;
 FnSymbol* initStringLiterals = NULL;
+LabelSymbol* initStringLiteralsEpilogue = NULL;
 
 void createInitStringLiterals() {
   SET_LINENO(stringLiteralModule);
@@ -2358,14 +2487,18 @@ VarSymbol *new_StringSymbol(const char *str) {
 
   CallExpr* ctorCall = new CallExpr(PRIM_MOVE, new SymExpr(s), ctor);
 
-  if (initStringLiterals == NULL)
+  if (initStringLiterals == NULL) {
     createInitStringLiterals();
+    initStringLiteralsEpilogue = initStringLiterals->getOrCreateEpilogueLabel();
+  }
 
-  initStringLiterals->insertBeforeEpilogue(new DefExpr(cptrTemp));
-  initStringLiterals->insertBeforeEpilogue(cptrCall);
-  initStringLiterals->insertBeforeEpilogue(new DefExpr(castTemp));
-  initStringLiterals->insertBeforeEpilogue(castCall);
-  initStringLiterals->insertBeforeEpilogue(ctorCall);
+  Expr* insertPt = initStringLiteralsEpilogue->defPoint;
+
+  insertPt->insertBefore(new DefExpr(cptrTemp));
+  insertPt->insertBefore(cptrCall);
+  insertPt->insertBefore(new DefExpr(castTemp));
+  insertPt->insertBefore(castCall);
+  insertPt->insertBefore(ctorCall);
 
   s->immediate = new Immediate;
   *s->immediate = imm;

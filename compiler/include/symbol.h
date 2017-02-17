@@ -154,11 +154,23 @@ public:
   DefExpr*           defPoint; // Point of definition
 
   // Managing the list of SymExprs that refer to this Symbol
+  // use for_SymbolSymExprs, for_SymbolDefs, for_SymbolUses
+  // to traverse these.
   void               addSymExpr(SymExpr* se);
   void               removeSymExpr(SymExpr* se);
   SymExpr*           firstSymExpr()                            const;
   SymExpr*           lastSymExpr()                             const;
-
+  // Get the number of Defs or Uses up to the maximum number
+  int                countDefs(int max=INT_MAX)                const;
+  int                countUses(int max=INT_MAX)                const;
+  // Does the Symbol have any Uses? same as countUses() > 0
+  // but may be faster.
+  bool               isUsed()                                  const;
+  bool               isDefined()                               const;
+  // Return the single use of this Symbol, or NULL if there are 0 or >= 2
+  SymExpr*           getSingleUse()                            const;
+  // Return the single def of this Symbol, or NULL if there are 0 or >= 2
+  SymExpr*           getSingleDef()                            const;
 protected:
                      Symbol(AstTag      astTag,
                             const char* init_name,
@@ -183,6 +195,14 @@ private:
        se;                                                              \
        se = _se_next,                                                   \
          _se_next = se ? se->symbolSymExprsNext : NULL)
+
+#define for_SymbolDefs(def, symbol)                                      \
+  for_SymbolSymExprs(def, symbol)                                        \
+    if ((isDefAndOrUse(def) & 1))
+
+#define for_SymbolUses(use, symbol)                                      \
+  for_SymbolSymExprs(use, symbol)                                        \
+    if ((isDefAndOrUse(use) & 2))
 
 
 bool isString(Symbol* symbol);
@@ -363,6 +383,9 @@ class TypeSymbol : public Symbol {
   virtual void    accept(AstVisitor* visitor);
   DECLARE_SYMBOL_COPY(TypeSymbol);
   void replaceChild(BaseAST* old_ast, BaseAST* new_ast);
+
+  void renameInstantiatedMulti(SymbolMap& subs, FnSymbol* fn);
+
   GenRet codegen();
   void codegenDef();
   void codegenPrototype();
@@ -371,6 +394,11 @@ class TypeSymbol : public Symbol {
   void codegenMetadata();
 
   const char* doc;
+
+ private:
+  void renameInstantiatedStart();
+  void renameInstantiatedIndividual(Symbol* sym);
+  void renameInstantiatedEnd();
 };
 
 /************************************* | **************************************
