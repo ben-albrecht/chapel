@@ -45,6 +45,7 @@
 #include "stringutil.h"
 #include "symbol.h"
 #include "TryStmt.h"
+#include "typeSpecifier.h"
 #include "view.h"
 #include "WhileStmt.h"
 
@@ -295,7 +296,7 @@ static void removeUnusedFunctions();
 static void removeUnusedTypes();
 static void buildRuntimeTypeInitFns();
 static void buildRuntimeTypeInitFn(FnSymbol* fn, Type* runtimeType);
-static void removeUnusedGlobals();
+static void removeUnusedModuleVariables();
 static void removeParamArgs();
 static void removeRandomPrimitives();
 static void removeActualNames();
@@ -6301,96 +6302,19 @@ static Expr* resolvePrimInit(CallExpr* call)
   return result;
 }
 
-static Expr*
-preFold(Expr* expr) {
+static Expr* preFold(Expr* expr) {
   Expr* result = expr;
+
   if (CallExpr* call = toCallExpr(expr)) {
     // Match calls that look like:  (<type-symbol> <immediate-integer>)
     // and replace them with:       <new-type-symbol>
     // <type-symbol> is in {dtBools, dtInt, dtUint, dtReal, dtImag, dtComplex}.
-    // This replaces, e.g. ( dtInt[INT_SIZE_DEFAULT] 32) with dtInt[INT_SIZE_32].
-    if (SymExpr* sym = toSymExpr(call->baseExpr)) {
-      if (TypeSymbol* type = toTypeSymbol(sym->symbol())) {
-        if (call->numActuals() == 1) {
-          if (SymExpr* arg = toSymExpr(call->get(1))) {
-            if (VarSymbol* var = toVarSymbol(arg->symbol())) {
-              if (var->immediate) {
-                if (NUM_KIND_INT == var->immediate->const_kind ||
-                    NUM_KIND_UINT == var->immediate->const_kind) {
-                  int size;
-                  if (NUM_KIND_INT == var->immediate->const_kind) {
-                    size = var->immediate->int_value();
-                  } else {
-                    size = (int)var->immediate->uint_value();
-                  }
-                  TypeSymbol* tsize = NULL;
-                  if (type == dtBools[BOOL_SIZE_SYS]->symbol) {
-                    switch (size) {
-                    case 8: tsize = dtBools[BOOL_SIZE_8]->symbol; break;
-                    case 16: tsize = dtBools[BOOL_SIZE_16]->symbol; break;
-                    case 32: tsize = dtBools[BOOL_SIZE_32]->symbol; break;
-                    case 64: tsize = dtBools[BOOL_SIZE_64]->symbol; break;
-                    default:
-                      USR_FATAL( call, "illegal size %d for bool", size);
-                    }
-                    result = new SymExpr(tsize);
-                    call->replace(result);
-                  } else if (type == dtInt[INT_SIZE_DEFAULT]->symbol) {
-                    switch (size) {
-                    case 8: tsize = dtInt[INT_SIZE_8]->symbol; break;
-                    case 16: tsize = dtInt[INT_SIZE_16]->symbol; break;
-                    case 32: tsize = dtInt[INT_SIZE_32]->symbol; break;
-                    case 64: tsize = dtInt[INT_SIZE_64]->symbol; break;
-                    default:
-                      USR_FATAL( call, "illegal size %d for int", size);
-                    }
-                    result = new SymExpr(tsize);
-                    call->replace(result);
-                  } else if (type == dtUInt[INT_SIZE_DEFAULT]->symbol) {
-                    switch (size) {
-                    case  8: tsize = dtUInt[INT_SIZE_8]->symbol;  break;
-                    case 16: tsize = dtUInt[INT_SIZE_16]->symbol; break;
-                    case 32: tsize = dtUInt[INT_SIZE_32]->symbol; break;
-                    case 64: tsize = dtUInt[INT_SIZE_64]->symbol; break;
-                    default:
-                      USR_FATAL( call, "illegal size %d for uint", size);
-                    }
-                    result = new SymExpr(tsize);
-                    call->replace(result);
-                  } else if (type == dtReal[FLOAT_SIZE_64]->symbol) {
-                    switch (size) {
-                    case 32:  tsize = dtReal[FLOAT_SIZE_32]->symbol;  break;
-                    case 64:  tsize = dtReal[FLOAT_SIZE_64]->symbol;  break;
-                    default:
-                      USR_FATAL( call, "illegal size %d for real", size);
-                    }
-                    result = new SymExpr(tsize);
-                    call->replace(result);
-                  } else if (type == dtImag[FLOAT_SIZE_64]->symbol) {
-                    switch (size) {
-                    case 32:  tsize = dtImag[FLOAT_SIZE_32]->symbol;  break;
-                    case 64:  tsize = dtImag[FLOAT_SIZE_64]->symbol;  break;
-                    default:
-                      USR_FATAL( call, "illegal size %d for imag", size);
-                    }
-                    result = new SymExpr(tsize);
-                    call->replace(result);
-                  } else if (type == dtComplex[COMPLEX_SIZE_128]->symbol) {
-                    switch (size) {
-                    case 64:  tsize = dtComplex[COMPLEX_SIZE_64]->symbol;  break;
-                    case 128: tsize = dtComplex[COMPLEX_SIZE_128]->symbol; break;
-                    default:
-                      USR_FATAL( call, "illegal size %d for complex", size);
-                    }
-                    result = new SymExpr(tsize);
-                    call->replace(result);
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+    // This replaces, e.g.
+    //   dtInt[INT_SIZE_DEFAULT] 32) with dtInt[INT_SIZE_32].
+    if (Type* type = typeForTypeSpecifier(call)) {
+      result = new SymExpr(type->symbol);
+
+      call->replace(result);
     }
 
     if (SymExpr* sym = toSymExpr(call->baseExpr)) {
@@ -9993,7 +9917,7 @@ pruneResolvedTree() {
   replaceTypeArgsWithFormalTypeTemps();
   removeParamArgs();
 
-  removeUnusedGlobals();
+  removeUnusedModuleVariables();
   removeUnusedTypes();
   removeActualNames();
   removeFormalTypeAndInitBlocks();
@@ -10125,17 +10049,19 @@ static void removeUnusedTypes() {
   }
 }
 
-static void removeUnusedGlobals()
-{
-  forv_Vec(DefExpr, def, gDefExprs)
-  {
-    // Remove unused global variables
-    if (toVarSymbol(def->sym))
-      if (toModuleSymbol(def->parentSymbol))
-        if (def->sym->type == dtUnknown ||
-            (def->sym->type->symbol->hasFlag(FLAG_GENERIC) &&
-             def->sym->hasFlag(FLAG_TYPE_VARIABLE)))
-          def->remove();
+// Remove module level variables if they are not defined or used
+// With the exception of variables that are defined in the rootModule
+static void removeUnusedModuleVariables() {
+  forv_Vec(DefExpr, def, gDefExprs) {
+    if (VarSymbol* var = toVarSymbol(def->sym)) {
+      if (ModuleSymbol* module = toModuleSymbol(def->parentSymbol)) {
+        if (var->isDefined() == false && var->isUsed() == false) {
+          if (module != rootModule) {
+            def->remove();
+          }
+        }
+      }
+    }
   }
 }
 
