@@ -216,7 +216,9 @@ module MPI {
     proc deinit() {
       if freeChplComm {
         coforall loc in Locales do on loc {
-          C_MPI.MPI_Comm_free(CHPL_COMM_WORLD_REPLICATED(1));
+          // TODO : Don't leak this. This results in dereference nil error for
+          //        some cases, e.g. linux64 multilocale mode with gasnet+mpi
+          //C_MPI.MPI_Comm_free(CHPL_COMM_WORLD_REPLICATED(1));
         }
       }
       if doinit {
