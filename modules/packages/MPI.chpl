@@ -215,11 +215,7 @@ module MPI {
     pragma "no doc"
     proc deinit() {
       if freeChplComm {
-        if numLocales > 1 {
-          coforall loc in Locales do on loc {
-            C_MPI.MPI_Comm_free(CHPL_COMM_WORLD_REPLICATED(1));
-          }
-        } else {
+        coforall loc in Locales do on loc {
           C_MPI.MPI_Comm_free(CHPL_COMM_WORLD_REPLICATED(1));
         }
       }
