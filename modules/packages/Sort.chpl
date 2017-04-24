@@ -509,6 +509,324 @@ proc insertionSort(Data: [?Dom] ?eltType, comparator:?rec=defaultComparator)
     compilerError("insertionSort() requires 1-D array");
 }
 
+/*
+   Sort the 1D array `Data` in-place using a binary insertion sort algorithm.
+
+   :arg Data: The array to be sorted
+   :type Data: [] `eltType`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+
+ */
+
+proc binaryInsertionSort(Data: [?Dom] ?eltType, comparator:?rec=defaultComparator) {
+  use Search;
+  chpl_check_comparator(comparator, eltType);
+  const low = Dom.low,
+        high = Dom.high,
+        stride = abs(Dom.stride);
+  for i in low..high by stride {
+    var ithVal = Data[i];
+    var inserted=false;
+    var (found,loc) = binarySearch(Data,ithVal,comparator=comparator,lo=low,hi=i);
+    
+    while(found && loc!=i){      
+      (found,loc) = binarySearch(Data,ithVal,comparator=comparator,lo=loc+stride,hi=i);      
+    }
+    var j:int = i-stride;
+    while(j>=loc)
+    {
+      
+      Data[j+stride]=Data[j];
+      j-=stride;
+    }
+    Data[j+stride]=ithVal;
+  }        
+}
+
+pragma "no doc"
+/*Error message for multi-dimension arrays */
+proc binaryInsertionSort(Data: [?Dom] ?eltType, comparator:?rec=defaultComparator)
+  where Dom.rank != 1 {
+    compilerError("binaryInsertionSort() requires 1-D array");
+}
+
+/*
+   Sort the 1D array `Data` in-place using a timSort algorithm.
+
+   :arg Data: The array to be sorted
+   :type Data: [] `eltType`
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+
+ */
+
+proc timSort(Data: [?Dom] ?eltType, comparator:?rec=defaultComparator) {
+  use Search; 
+  chpl_check_comparator(comparator, eltType);
+  if(Dom.size<=64){
+    binaryInsertionSort(Data,comparator=comparator);
+    return;
+  }
+  const low = Dom.low,
+        high = Dom.high,
+        stride = abs(Dom.stride);
+  
+
+  var (runs,count)=getRuns(Data,getMinrun(Dom.size)); 
+  //reusing runs array for stack
+  var top = 1; //array stack. Add first 3 runs
+  var next = 2;//not part of the stack. next run to be added
+  while(top>0){
+    if(top<2){
+      if(next>=count){
+        _TimSortMerge(Data,runs[0],runs[1]);
+        top-=1;
+      }else{
+        top+=1;
+        runs[top]=runs[next];
+        next+=1;
+      }
+    }else{
+      if(runs[top].size> runs[top-1].size+runs[top-2].size && runs[top-1].size>runs[top-2].size){
+        top+=1;
+        runs[top]=runs[next];
+        next+=1;
+      }else{
+        if(runs[top].size<runs[top-2].size){
+          top-=1;
+          runs[top]=_TimSortMerge(Data,runs[top],runs[top+1]);
+        }else{
+          top-=1;
+          runs[top-1]=_TimSortMerge(Data,runs[top-1],runs[top]);
+          runs[top]=runs[top+1];
+        }
+      }
+    }
+  }
+  
+}
+
+pragma "no doc"
+/*Error message for multi-dimension arrays */
+proc timSort(Data: [?Dom] ?eltType, comparator:?rec=defaultComparator)
+  where Dom.rank != 1 {
+    compilerError("timSort() requires 1-D array");
+}
+
+/*
+  Calculates the minrun length.
+  
+  :arg n: Number of elements in the data in question.
+  :returns: The minrun length.
+*/
+proc getMinrun(in n: int) : int{
+  var r: int;
+  while(n>=64){
+    r|=n&1;
+    n>>=1;
+    
+  }
+  return n+r;
+}
+;
+ /*
+   Gets sorted sub-arrays present in the data.
+   Performs binary insertion sort if the runlength is smaller than minrun   
+   
+   :arg Data: The array to be scanned
+   :type Data: [] `eltType`
+   :arg minrun: length of the smallest run. Default=1.
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+   :returns: a touple of an array of domains representing runs and the number of runs (array,number)
+
+ */
+
+proc getRuns(Data:[?Dom] ?eltType, minrun:int=1, comparator:?rec=defaultComparator){
+  
+  const low = Dom.low,
+        high = Dom.high,
+        stride = abs(Dom.stride);
+  proc countRun(Data:[?Dom], start=low, comparator:?rec=defaultComparator){
+    if(start>=Dom.last) then return {start..start by stride};
+    var last=start;
+    if(chpl_compare(Data[start],Data[start+stride],comparator)<=0){ //asscending
+      while(last+stride<=high && chpl_compare(Data[last],Data[last+stride],comparator)<=0){
+        last+=stride;
+      }
+    }
+    else { //decending
+      while(last+stride<=high && chpl_compare(Data[last],Data[last+stride],comparator)>0){
+        last+=stride;
+      }
+      
+      var l=start,h=last;
+      //reverse
+      while(l<h){
+        Data[l]<=>Data[h];
+        l+=stride;
+        h-=stride;
+      }
+    }
+    return {start..last by stride};
+  }
+  var base=low;
+  var maxRuns=(high-low)/(stride*minrun) +1;
+  var s=false;
+  //if (stride >1) then s=true;
+  var runs:[0..maxRuns] domain(1,stridable=true);
+  var n=0;
+  
+  do{
+    var subD=countRun(Data,base);
+    var sz=subD.size;
+    if(sz<minrun){
+      var h=(stride*minrun)-stride;
+      var l=subD.low;
+      if(l+h > high){      
+        subD = {l..high by stride};        
+        binaryInsertionSort(Data[subD], comparator=comparator);        
+      }else{        
+        subD = {l..l+h by stride};        
+        binaryInsertionSort(Data[subD],comparator=comparator);          
+      }
+    }    
+    runs[n]=subD;
+    n+=1;
+    base=subD.high+stride;    
+  }while(base<high);  
+  return (runs,n);   
+}
+
+/*
+   Merges consecutive runs for timSort
+   
+   :arg Data: The array to be scanned
+   :type Data: [] `eltType`
+   :arg run1: domain of first run
+   :arg run2: domain of second run
+   :arg comparator: :ref:`Comparator <comparators>` record that defines how the
+      data is sorted.
+ */
+ 
+proc _TimSortMerge(Data:[?Dom] ?eltType,run1:domain,run2:domain,comparator:?rec=defaultComparator) {
+  const stride=Dom.stride;
+  var s1,s2:int;
+  var MIN_GALLOP=7;
+  if(run1.size<=run2.size){    
+    var tmp = Data[run1];
+    var i=run1.first;
+    var j=run2.first;
+    var k=run1.first;
+    while(i<=run1.last && j<=run2.last){
+      if(chpl_compare(tmp[i],Data[j],comparator=comparator)<0){
+        Data[k]=tmp[i];
+        i+=stride;
+        k+=stride;
+        s1+=1;
+        s2=0;
+        if(s1>=MIN_GALLOP){
+          var d=stride,b=i-stride, t=Data[j];
+          while(b+d<run1.last && chpl_compare(tmp[b+d],t,comparator=comparator)<0){
+            d<<=1;
+          }
+          if(d>stride){
+            d>>=1;
+            Data[k..k+d by stride]= tmp[i..i+d by stride];
+            i+=d;
+            k+=d;
+          }
+          s1=0;
+        }
+      }else{
+        Data[k]=Data[j];
+        j+=stride;
+        k+=stride;
+        s2+=1;
+        s1=0;
+        if(s2>=MIN_GALLOP){
+          var d=stride,t=tmp[i],b=j-stride;
+          while(b+d<run1.last && chpl_compare(t,Data[b+d],comparator=comparator)>=0){
+            d<<=1;
+            
+          }
+          if(d>stride){
+            d>>=1;
+            d-=stride;
+            //serial Data[k..k+d by stride] = Data[j..j+d by stride];
+            for (x,y) in zip(k..k+d by stride,j..j+d by stride){
+              Data[x]=Data[y];
+            }
+            j+=d;
+            k+=d;
+          }
+          s2=0;
+        }
+      }      
+    }
+    if(j>run2.last){
+      Data[k..run2.high by stride]=tmp[i..run1.high by stride];
+    }
+  }else{
+    var tmp = Data[run2];
+    var i=run2.last;
+    var j=run1.last;
+    var k=run2.last;
+    while(i>=run2.first && j >=run1.first){
+      if(chpl_compare(tmp[i],Data[j],comparator=comparator)>=0){
+        Data[k]=tmp[i];
+        i-=stride;
+        k-=stride;
+        s1+=1;
+        s2=0; 
+        if(s1>=MIN_GALLOP){
+          var d=stride,b=i+stride,t=Data[j];
+          while(b-d>=run2.low && chpl_compare(tmp[b-d],t,comparator=comparator)>=0){
+            d<<=1;
+          }
+          if(d>stride){
+            d>>=1;
+            d-=stride;
+            Data[k-d..k by stride] = tmp[i-d..i by stride];
+            i-=d;
+            k-=d;
+          }
+          s1=0;
+        } 
+      }else{
+        Data[k]=Data[j];
+        j-=stride;
+        k-=stride;
+        s2+=1;
+        s1=0;
+        if(s2>=MIN_GALLOP){
+          
+          var d=stride,b=j+stride,t=tmp[i];
+          while(b-d>=run1.low && chpl_compare(t,Data[b-d],comparator=comparator)<0){
+            d<<=1;
+          }
+          if(d>stride){
+             
+            d>>=1;
+            d-=stride;            
+            for (x,y) in zip(k-d..k by -stride,j-d..j by -stride){
+              Data[x]=Data[y];
+            }
+            j-=d;
+            k-=d;
+          }
+          s2=0;
+        }
+      }
+      
+    }
+    if(j<run1.first){
+      Data[run1.low..k by stride]=tmp[run2.low..i by stride];
+    }
+  }
+  return {run1.low..run2.high by stride}; 
+}
 
 /*
    Sort the 1D array `Data` in-place using a parallel merge sort algorithm.
