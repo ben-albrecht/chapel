@@ -9,7 +9,7 @@ use Reflection;
     }
 
     proc testBar() {
-      writeln('foo');
+      writeln('bar');
     }
 
   }

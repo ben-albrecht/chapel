@@ -70,8 +70,8 @@ proc getMethodName(x, param i:int) param : string
    :arg i: which field to get the name of
    :returns: the name of the field, as a param string
  */
-proc callMethod(x, param i:int) param
-  return __primitive("method num to name", x, i);
+//proc callMethod(x, param i:int) param
+  //return __primitive("call method by num", x, i);
 
 
 // TODO -- is not supporting arguments too much of a kludge?

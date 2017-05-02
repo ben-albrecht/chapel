@@ -7091,15 +7091,6 @@ preFold(Expr* expr) {
 
       call->replace(result);
     } else if (call->isPrimitive(PRIM_CALL_METHOD_BY_NAME)) {
-      // TODO
-
-
-      // Assumes concrete (non-generic)
-      Type* type = call->get(1)->getValType();
-      INT_ASSERT( type != NULL );
-
-      VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
-      INT_ASSERT( var != NULL );
 
       // name of field converted to index
       // Instead, I want to find methods with substring
@@ -7114,21 +7105,35 @@ preFold(Expr* expr) {
       int methodcount = 0;
       int methodnum = 0;
 
+      // Assumes concrete (non-generic)
+      Type* type = call->get(1)->getValType();
+      INT_ASSERT( type != NULL );
+
       forv_Vec(FnSymbol, fn, type->methods) {
-        if (methodcount == methodnum) {
-          methodnum++;
+          methodcount++;
           if (0 == strcmp(fn->name,  methodname)) {
             methodnum = methodcount;
             // break could be here, but might have issues with GCC 5.10
           }
-        }
       }
+
+      //Symbol* varRecord = toSymExpr(call->get(1))->symbol();
+      //INT_ASSERT( varRecord != NULL );
+
 
       // TODO -- call method here, and store result in call
       // How can I call a method with a CallExpr?
-      //result = new CallExpr(PRIM_GET_MEMBER, call->get(1)->copy(),
-      //                      new_CStringSymbol(name));
+
+      //FnSymbol* fn = type->methods.v[methodnum];
+      //fn->addFlag(FLAG_METHOD);
+      //fn->addFlag(FLAG_METHOD_PRIMARY);
+      //fn->_this = varRecord;
+
+      //result = new CallExpr(fn);
+      result = new CallExpr(PRIM_GET_MEMBER, call->get(1)->copy(),
+                            new_CStringSymbol(methodname));
       call->replace(result);
+
     } else if (call->isPrimitive(PRIM_FIELD_BY_NUM)) {
       // if call->get(1) is a reference type, dereference it
       AggregateType* classtype = toAggregateType(call->get(1)->typeInfo());
