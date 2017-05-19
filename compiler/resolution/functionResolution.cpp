@@ -6371,6 +6371,11 @@ static Expr* resolvePrimInit(CallExpr* call)
   return result;
 }
 
+static bool isUserVisibleMethod(FnSymbol* fn) {
+  return !(fn->hasFlag(FLAG_COMPILER_GENERATED)
+           || fn->hasFlag(FLAG_INVISIBLE_FN));
+}
+
 static Expr*
 preFold(Expr* expr) {
   Expr* result = expr;
@@ -7053,9 +7058,10 @@ preFold(Expr* expr) {
       int methodcount = 0;
 
       // TODO -- This does not capture methods on generic record/classes
-      // Probably need some special checks...
       forv_Vec(FnSymbol, fn, type->methods) {
-        methodcount++;
+        if (isUserVisibleMethod(fn)) {
+          methodcount++;
+        }
       }
 
       result = new SymExpr(new_IntSymbol(methodcount));
@@ -7075,10 +7081,12 @@ preFold(Expr* expr) {
       const char* name = NULL;
 
       forv_Vec(FnSymbol, fn, type->methods) {
-        methodcount++;
-        if (methodcount == methodnum) {
-          name = fn->name;
-          // break could be here, but might have issues with GCC 5.10
+        if (isUserVisibleMethod(fn)) {
+          methodcount++;
+          if (methodcount == methodnum) {
+            name = fn->name;
+            // break could be here, but might have issues with GCC 5.10
+          }
         }
       }
 
@@ -7090,50 +7098,55 @@ preFold(Expr* expr) {
       result = new SymExpr(new_StringSymbol(name));
 
       call->replace(result);
-    } else if (call->isPrimitive(PRIM_CALL_METHOD_BY_NAME)) {
+    } else if (call->isPrimitive(PRIM_CALL_METHOD)) { // TODO - rename CALL_METHOD
+      Expr* fnName = NULL;
+      Expr* callThis = NULL;
 
-      // name of field converted to index
-      // Instead, I want to find methods with substring
-      VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
+      // this would be easier if we had a non-normalized AST!
+      // That is, if this call could contain a whole expression subtree.
+      int first_arg;
+      // get(1) should be a receiver
+      // get(2) should be a string function name.
+      callThis = call->get(1);
+      fnName = call->get(2);
+      first_arg = 3;
+      VarSymbol* var = toVarSymbol(toSymExpr(fnName)->symbol());
       INT_ASSERT( var != NULL );
-
+      // the rest are arguments.
       Immediate* imm = var->immediate;
-      // fail horribly if immediate is not a string
-      INT_ASSERT(imm->const_kind == CONST_KIND_STRING);
+      // fail horribly if immediate is not a string .
+      if (!imm)
+        INT_FATAL(call, "proc name required");
+      if (imm->const_kind != CONST_KIND_STRING)
+        INT_FATAL(call, "proc name must be a string");
 
-      const char* methodname = imm->v_string;
-      int methodcount = 0;
-      int methodnum = 0;
+      const char* name = imm->v_string;
 
-      // Assumes concrete (non-generic)
-      Type* type = call->get(1)->getValType();
-      INT_ASSERT( type != NULL );
+      // temporarily add a call to try resolving.
+      CallExpr* tryCall = NULL;
+      tryCall = new CallExpr(new UnresolvedSymExpr(name),
+                             gMethodToken,
+                             callThis->copy());
 
-      forv_Vec(FnSymbol, fn, type->methods) {
-          methodcount++;
-          if (0 == strcmp(fn->name,  methodname)) {
-            methodnum = methodcount;
-            // break could be here, but might have issues with GCC 5.10
-          }
+      // Add our new call to the AST temporarily.
+      call->getStmtExpr()->insertAfter(tryCall);
+
+      // copy actual args into tryCall.
+      int i = 1;
+      for_actuals(actual, call) {
+        if( i >= first_arg ) { // skip fn name, maybe method receiver
+          tryCall->insertAtTail(actual->copy());
+        }
+        i++;
       }
 
-      //Symbol* varRecord = toSymExpr(call->get(1))->symbol();
-      //INT_ASSERT( varRecord != NULL );
+      resolveCall(tryCall);
 
+      result = tryCall;
 
-      // TODO -- call method here, and store result in call
-      // How can I call a method with a CallExpr?
+      result->remove();
 
-      //FnSymbol* fn = type->methods.v[methodnum];
-      //fn->addFlag(FLAG_METHOD);
-      //fn->addFlag(FLAG_METHOD_PRIMARY);
-      //fn->_this = varRecord;
-
-      //result = new CallExpr(fn);
-      result = new CallExpr(PRIM_GET_MEMBER, call->get(1)->copy(),
-                            new_CStringSymbol(methodname));
       call->replace(result);
-
     } else if (call->isPrimitive(PRIM_FIELD_BY_NUM)) {
       // if call->get(1) is a reference type, dereference it
       AggregateType* classtype = toAggregateType(call->get(1)->typeInfo());

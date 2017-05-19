@@ -290,9 +290,9 @@ classifyPrimitive(CallExpr *call) {
   case PRIM_FIELD_BY_NUM:
 
   case PRIM_NUM_METHODS:
-  case PRIM_CALL_METHOD_BY_NAME:
+  case PRIM_CALL_METHOD:
   case PRIM_METHOD_NUM_TO_NAME:
-  case PRIM_METHOD_NAME_TO_NUM:
+  case PRIM_GET_METHOD_INDEX:
 
   case PRIM_TO_STANDALONE:
   case PRIM_IS_REF_ITER_TYPE:
