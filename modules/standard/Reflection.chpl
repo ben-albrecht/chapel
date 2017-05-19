@@ -46,8 +46,8 @@ proc numFields(type t) param : int
    The count of methods includes initializers, readThis, and writeThis
    methods
  */
-proc numMethods(x) param : int
-  return __primitive("num methods", x);
+proc numMethods(type t) param : int
+  return __primitive("num methods", t);
 
 
 /* Get the name of the ith method in a class or record.
@@ -57,8 +57,8 @@ proc numMethods(x) param : int
    :arg i: which field to get the name of
    :returns: the name of the field, as a param string
  */
-proc getMethodName(x, param i:int) param : string
-  return __primitive("method num to name", x, i);
+proc getMethodName(type t, param i:int) param : string
+  return __primitive("method num to name", t, i);
 
 
 // TODO -- is not supporting arguments too much of a kludge?
@@ -74,17 +74,30 @@ proc getMethodName(x, param i:int) param : string
   //return __primitive("call method by num", x, i);
 
 
-// TODO -- is not supporting arguments too much of a kludge?
-/* Call the method named `s` in a class or record with no arguments.
-   Causes a compilation error if the argument-less method cannot be resolved on
-   the instance.
+// TODO - rename documentation
+/* Get an argument-less method index in a class or record, or 0 if the method
+   is not found.
 
-   :arg x: instance of a class or record type
-   :arg i: which field to get the name of
-   :returns: the name of the field, as a param string
+   :arg t: a class or record type
+   :arg s: the name of a method
+   :returns: an index `i` usable in callMethod, or 0 if the method was not found.
  */
-proc callMethod(x, param s:string) param
-  return __primitive("call method by name", x, s);
+proc callMethod(obj, param fname:string) {
+  // TODO - rename prim
+  __primitive("call method", obj, fname);
+  // TODO: Return something? Maybe David Iten's voids will handle this
+}
+
+/* Get a method index in a class or record, or 0 if the method is not found.
+
+   :arg t: a class or record type
+   :arg s: the name of a method
+   :arg args: Arguments to pass to method
+   :returns: an index `i` usable in callMethod, or 0 if the method was not found.
+ */
+proc callMethod(type t, param s:string, args ...) param: int {
+ // TODO
+}
 
 
 /* Get the name of the ith field in a class or record.
