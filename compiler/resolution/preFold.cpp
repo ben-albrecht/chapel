@@ -58,6 +58,8 @@ static Symbol*        determineQueriedField(CallExpr* call);
 
 static bool           isInstantiatedField(Symbol* field);
 
+static bool           isUserVisibleMethod(FnSymbol* fn);
+
 static Expr*          createFunctionAsValue(CallExpr* call);
 
 static AggregateType* createOrFindFunTypeFromAnnotation(AList&    argList,
@@ -784,6 +786,99 @@ Expr* preFold(CallExpr* call) {
     tryCall->remove();
 
     call->replace(result);
+  } else if (call->isPrimitive(PRIM_NUM_METHODS)) {
+    Type* type = call->get(1)->getValType();
+    int methodcount = 0;
+    // Assumes concrete (non-generic)
+
+    forv_Vec(FnSymbol, fn, type->methods) {
+      if (isUserVisibleMethod(fn)) {
+        methodcount++;
+      }
+    }
+
+    result = new SymExpr(new_IntSymbol(methodcount));
+
+    call->replace(result);
+  } else if (call->isPrimitive(PRIM_METHOD_NUM_TO_NAME)) {
+    // Assumes concrete (non-generic)
+    Type* type = call->get(1)->getValType();
+    INT_ASSERT( type != NULL );
+
+    VarSymbol* var = toVarSymbol(toSymExpr(call->get(2))->symbol());
+    INT_ASSERT( var != NULL );
+
+    int methodnum = var->immediate->int_value();
+    int methodcount = 0;
+    const char* name = NULL;
+
+    forv_Vec(FnSymbol, fn, type->methods) {
+      if (isUserVisibleMethod(fn)) {
+        methodcount++;
+        if (methodcount == methodnum) {
+          name = fn->name;
+          // break could be here, but might have issues with GCC 5.10
+        }
+      }
+    }
+
+    if (!name) {
+      USR_FATAL(call, "'%d' is not a valid field number for %s", methodnum,
+                toString(type));
+    }
+
+    result = new SymExpr(new_StringSymbol(name));
+
+    call->replace(result);
+  } else if (call->isPrimitive(PRIM_CALL_METHOD)) {
+    Expr* fnName = NULL;
+    Expr* callThis = NULL;
+
+    // this would be easier if we had a non-normalized AST!
+    // That is, if this call could contain a whole expression subtree.
+    int first_arg;
+    // get(1) should be a receiver
+    // get(2) should be a string function name.
+    callThis = call->get(1);
+    fnName = call->get(2);
+    first_arg = 3;
+    VarSymbol* var = toVarSymbol(toSymExpr(fnName)->symbol());
+    INT_ASSERT( var != NULL );
+    // the rest are arguments.
+    Immediate* imm = var->immediate;
+    // fail horribly if immediate is not a string.
+    if (!imm)
+      INT_FATAL(call, "proc name required");
+    if (imm->const_kind != CONST_KIND_STRING)
+      INT_FATAL(call, "proc name must be a string");
+
+    const char* name = imm->v_string;
+
+    // temporarily add a call to try resolving.
+    CallExpr* tryCall = NULL;
+    tryCall = new CallExpr(new UnresolvedSymExpr(name),
+                           gMethodToken,
+                           callThis->copy());
+
+    // Add our new call to the AST temporarily.
+    call->getStmtExpr()->insertAfter(tryCall);
+
+    // copy actual args into tryCall.
+    int i = 1;
+    for_actuals(actual, call) {
+      if( i >= first_arg ) { // skip fn name, maybe method receiver
+        tryCall->insertAtTail(actual->copy());
+      }
+      i++;
+    }
+
+    resolveCall(tryCall);
+
+    result = tryCall;
+
+    result->remove();
+
+    call->replace(result);
   } else if (call->isPrimitive(PRIM_ENUM_MIN_BITS) || call->isPrimitive(PRIM_ENUM_IS_SIGNED)) {
     EnumType* et = toEnumType(toSymExpr(call->get(1))->symbol()->type);
 
@@ -1016,6 +1111,16 @@ static bool isInstantiatedField(Symbol* field) {
   }
   return false;
 }
+
+
+//
+// returns true if method is visible and not compiler-generated
+//
+static bool isUserVisibleMethod(FnSymbol* fn) {
+  return !(fn->hasFlag(FLAG_COMPILER_GENERATED) ||
+           fn->hasFlag(FLAG_INVISIBLE_FN));
+}
+
 
 /*
   Captures a function as a first-class value by creating an object that will
@@ -1585,3 +1690,4 @@ static FnSymbol* createAndInsertFunParentMethod(CallExpr*      call,
 
   return parent_method;
 }
+

@@ -118,6 +118,8 @@ void checkPrimitives()
      case PRIM_FIELD_NUM_TO_NAME:
      case PRIM_FIELD_NAME_TO_NUM:
      case PRIM_FIELD_BY_NUM:
+     case PRIM_CALL_METHOD:
+     case PRIM_METHOD_NUM_TO_NAME:
      case PRIM_ENUM_MIN_BITS:
      case PRIM_ENUM_IS_SIGNED:
      case PRIM_IS_UNION_TYPE:
@@ -302,6 +304,7 @@ void checkPrimitives()
      case PRIM_GET_SVEC_MEMBER_VALUE:
      case PRIM_VIRTUAL_METHOD_CALL:
      case PRIM_NUM_FIELDS:
+     case PRIM_NUM_METHODS:
      case PRIM_IS_POD:
       break;
     }
