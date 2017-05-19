@@ -669,6 +669,11 @@ initPrimitive() {
   prim_def(PRIM_IS_ATOMIC_TYPE, "is atomic type", returnInfoBool);
   prim_def(PRIM_IS_REF_ITER_TYPE, "is ref iter type", returnInfoBool);
 
+  prim_def(PRIM_NUM_METHODS, "num methods", returnInfoInt32);
+  prim_def(PRIM_METHOD_NUM_TO_NAME, "method num to name", returnInfoString);
+  // Note: returnInfoVoid is a white lie
+  prim_def(PRIM_CALL_METHOD, "call method", returnInfoVoid);
+
   prim_def(PRIM_IS_POD, "is pod type", returnInfoBool);
 
   // This primitive allows normalize to request function resolution
