@@ -1114,11 +1114,12 @@ static bool isInstantiatedField(Symbol* field) {
 
 
 //
-// returns true if method is visible and not compiler-generated
+// returns true if method is visible non-compiler-generated non-field-accessor
 //
 static bool isUserVisibleMethod(FnSymbol* fn) {
   return !(fn->hasFlag(FLAG_COMPILER_GENERATED) ||
-           fn->hasFlag(FLAG_INVISIBLE_FN));
+           fn->hasFlag(FLAG_INVISIBLE_FN) ||
+           fn->hasFlag(FLAG_FIELD_ACCESSOR));
 }
 
 
