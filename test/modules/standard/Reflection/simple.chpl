@@ -16,19 +16,21 @@ use Reflection;
 
   var r = new Simple();
 
-  const num = numMethods(r);
+  param num = numMethods(r.type);
   writeln(num);
 
   // should get first method
-  var name = getMethodName(r, 1);
-  writeln(name);
-
-  var x = callMethod(r, 'testFoo');
+  for param i in 1..num {
+    param name = getMethodName(r.type, i);
+    writeln(name);
+    callMethod(r, name);
+  }
 
 }
 
 
 // Generic test -- currently not working
+/*
 {
   record Generic {
 
@@ -51,5 +53,6 @@ use Reflection;
 
 }
 
+*/
 
 
