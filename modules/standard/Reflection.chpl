@@ -1,15 +1,15 @@
 /*
  * Copyright 2004-2017 Cray Inc.
  * Other additional copyright holders may be indicated within.
- * 
+ *
  * The entirety of this work is licensed under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
- * 
+ *
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,7 +24,7 @@
    .. note ::
 
      There are several ways in which this module could be improved upon:
-     
+
        * the methods here might be better as type methods,
          so you could use `R.numFields()` instead of `numFields(R)`.
        * :proc:`getField` does not yet return a mutable value.
@@ -37,6 +37,11 @@ module Reflection {
 proc numFields(type t) param : int
   return __primitive("num fields", t);
 
+/* Return the number of user-defined methods in a class or record as a param.
+ */
+proc numMethods(type t) param : int
+  return __primitive("num methods", t);
+
 /* Get the name of the ith field in a class or record.
    Causes a compilation error if `i` is not in 1..numFields(t).
 
@@ -46,6 +51,16 @@ proc numFields(type t) param : int
  */
 proc getFieldName(type t, param i:int) param : string
   return __primitive("field num to name", t, i);
+
+/* Get the name of the ith user-defined method in a class or record.
+   Causes a compilation error if `i` is not in 1..numMethods(t).
+
+   :arg t: a class or record type
+   :arg i: which method to get the name of
+   :returns: the name of the method, as a param string
+ */
+proc getMethodName(type t, param i:int) param : string
+  return __primitive("method num to name", t, i);
 
 pragma "no doc"
 proc getField(const ref x:?t, param i: int) param
@@ -130,6 +145,25 @@ proc getFieldRef(ref x:?t, param s:string) ref {
   return __primitive("field by num", x, i);
 }
 
+/* Call a user-defined method in a class or record by name, with no arguments.
+
+   :arg t: a class or record type
+   :arg name: the name of a method
+ */
+proc callMethod(obj, param name:string) {
+  __primitive("call method", obj, name);
+  // TODO -- Return something? Maybe David Iten's voids will handle this
+}
+
+/* Call a user-defined method in a class or record by name, with arguments.
+
+   :arg t: a class or record type
+   :arg name: the name of a method
+ */
+proc callMethod(type t, param s:string, args ...) {
+ // TODO -- Implement
+}
+
 /* Get a field index in a class or record, or 0 if
    the field is not found.
 
@@ -182,7 +216,7 @@ proc canResolveMethod(obj, param fname : string, args ...) param : bool
    */
 proc canResolveTypeMethod(type t, param fname : string) param : bool
   return __primitive("method call resolves", t, fname);
- 
+
 /* Returns true if a type method named `fname` taking the
    arguments in `args` could be called on type `t` in the current scope.
    */
