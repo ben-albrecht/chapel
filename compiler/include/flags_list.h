@@ -285,6 +285,7 @@ symbolFlag( FLAG_UNREF_FN,  ypr, "unref fn" , "function to remove reference fiel
 symbolFlag( FLAG_VECTORIZE_YIELDING_LOOPS, ypr, "vectorize yielding loops", "used to explicitly vectorize yielding loops in iterators" )
 symbolFlag( FLAG_VIRTUAL , npr, "virtual" , ncm )
 symbolFlag( FLAG_VOID_NO_RETURN_VALUE, npr, "no return value for void", "function does not return a value if the return type is void" )
+symbolFlag( FLAG_RELAX_VOID_CHECKING, ypr, "relax void checking", "function can return a call to a function that does not return" )
 // Used to mark where a compiler generated flag was removed (but is desired
 // elsewhere).
 symbolFlag( FLAG_WAS_COMPILER_GENERATED, npr, "was compiler generated", "used to be marked compiler generated")

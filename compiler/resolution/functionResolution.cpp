@@ -4198,11 +4198,13 @@ static void resolveMove(CallExpr* call) {
   if (rhsType == dtVoid) {
     if (CallExpr* rhsCall = toCallExpr(rhs)) {
       if (FnSymbol* rhsFn = rhsCall->resolvedFunction()) {
-        if (rhsFn->hasFlag(FLAG_VOID_NO_RETURN_VALUE)) {
-          USR_FATAL(userCall(call),
-                    "illegal use of function that does not "
-                    "return a value: '%s'",
-                    rhsFn->name);
+        if (rhsFn->hasFlag(FLAG_VOID_NO_RETURN_VALUE) &&
+            !fn->hasFlag(FLAG_RELAX_VOID_CHECKING))
+        {
+            USR_FATAL(userCall(call),
+                      "illegal use of function that does not "
+                      "return a value: '%s'",
+                      rhsFn->name);
         }
       }
     }

@@ -150,8 +150,9 @@ proc getFieldRef(ref x:?t, param s:string) ref {
    :arg t: a class or record type
    :arg name: the name of a method
  */
+pragma "relax void checking"
 proc callMethod(obj, param name:string) {
-  __primitive("call method", obj, name);
+  return __primitive("call method", obj, name);
   // TODO -- Return something? Maybe David Iten's voids will handle this
 }
 
