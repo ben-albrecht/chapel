@@ -153,7 +153,6 @@ proc getFieldRef(ref x:?t, param s:string) ref {
 pragma "relax void checking"
 proc callMethod(obj, param name:string) {
   return __primitive("call method", obj, name);
-  // TODO -- Return something? Maybe David Iten's voids will handle this
 }
 
 /* Call a user-defined method in a class or record by name, with arguments.
@@ -161,8 +160,9 @@ proc callMethod(obj, param name:string) {
    :arg t: a class or record type
    :arg name: the name of a method
  */
-proc callMethod(type t, param s:string, args ...) {
- // TODO -- Implement
+pragma "relax void checking"
+proc callMethod(obj, param name:string, args ...) {
+  return __primitive("call method", obj, name, (...args));
 }
 
 /* Get a field index in a class or record, or 0 if

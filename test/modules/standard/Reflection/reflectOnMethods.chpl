@@ -6,14 +6,26 @@ record R {
   proc bar() { writeln('bar called'); }
 }
 
+record Rgs {
+  var x = 10;
+  proc foo(x) { writeln('foo called'); }
+  proc bar(x) { writeln('bar called'); }
+}
+
 var r = new R();
 
-writeln(numMethods(r.type));
-// Slightly different kind of test..
 for param i in 1..numMethods(r.type) {
   param mName= getMethodName(r.type, i);
   writeln(mName);
   callMethod(r, mName);
+}
+
+var args = new Rgs;
+
+for param i in 1..numMethods(args.type) {
+  param mName= getMethodName(args.type, i);
+  writeln(mName);
+  callMethod(args, mName, 3);
 }
 
 /* Possible Futures:
