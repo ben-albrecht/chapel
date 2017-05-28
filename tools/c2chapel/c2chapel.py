@@ -162,6 +162,8 @@ def getDeclName(decl):
         name = inner.name
     elif type(inner) == c_ast.Decl:
         name = inner.name
+    elif type(inner) == c_ast.Enum:
+        name = inner.name
     else:
         raise Exception("Unhandled node type: " + str(type(inner)))
     return name
@@ -317,6 +319,11 @@ def genStruct(struct, name=""):
 
     members = ""
     warnKeyword = False
+
+    if struct.decls is None:
+        genComment("Could not find declaration of '" + name + "'")
+        return
+
     for decl in struct.decls:
         innerStruct = isStructDef(decl)
         if innerStruct is not None:
@@ -373,9 +380,29 @@ class ChapelVisitor(c_ast.NodeVisitor):
                 self.visit_FuncDecl(c)
             elif type(c) == c_ast.TypeDecl or type(c) == c_ast.PtrDecl or type(c) == c_ast.ArrayDecl:
                 genVar(node)
+            elif type(c) == c_ast.Enum:
+                genEnum(node)
             else:
                 node.show()
                 raise Exception("Unhandled declaration")
+
+enum_index = 1
+
+def genEnum(node):
+    global enum_index
+    #print(node.name)
+
+    # TODO: Clean this up
+    enums = [e.name for e in node.children()[0][1].children()[0][1].enumerators]
+    enum_name = 'Enum{0}'.format(enum_index)
+    prefix = 'enum {0} '.format(enum_name) + '{'
+    indent = len(prefix)*' '
+    split = ',\n{0}'.format(indent)
+    postfix = '};'
+    genComment('Auto-generated enum name')
+    print(prefix + split.join(enums) + postfix)
+    print('use {0};'.format(enum_name))
+    enum_index += 1
 
 
 def genTypeAlias(node):
@@ -537,6 +564,6 @@ if __name__=="__main__":
     v = ChapelVisitor()
     v.visit(ast)
 
-    if args.no_typedefs is False:
-        handleTypedefs(typeDefs, ignores)
+    #if args.no_typedefs is False:
+    #    handleTypedefs(typeDefs, ignores)
 
