@@ -142,6 +142,7 @@ class LocDiagonalDom {
   type idxType;
   param stridable: bool;
   var myBlock: domain(rank, idxType, stridable);
+  var myStorageBlock: domain(1, idxType, stridable);
 }
 
 //
@@ -183,7 +184,7 @@ class LocDiagonalArr {
   param stridable: bool;
   const locDom: LocDiagonalDom(rank, idxType, stridable);
   // TODO diagonal - adjust
-  var myElems: [locDom.myBlock] eltType;
+  var myElems: [locDom.myStorageBlock] eltType;
 }
 
 //
@@ -575,8 +576,10 @@ proc DiagonalDom.setup() {
     }
   } else {
     coforall localeIdx in dist.targetLocDom do {
-      on dist.targetLocales(localeIdx) do
+      on dist.targetLocales(localeIdx) {
         locDoms(localeIdx).myBlock = dist.getChunk(whole, localeIdx);
+        locDoms(localeIdx).myStorageBlock = {locDoms(localeIdx).myBlock.dim(1)};
+      }
     }
   }
 }
@@ -644,21 +647,23 @@ inline proc DiagonalArr.dsiLocalAccess(i: rank*idxType) ref {
 // BHARSH TODO: Should this argument have the 'const in' intent? If it is
 // remote, the commented-out local block will fail.
 //
+
+// 2D -> 1D
 inline proc DiagonalArr.dsiAccess(idx: rank*idxType) ref {
-  var i = idx;
   local {
-    if myLocArr != nil && myLocArr.locDom.member(i) then
-      return myLocArr.this(i);
+    // TODO update locDom.member
+    if myLocArr != nil && myLocArr.locDom.member(idx) then
+      return myLocArr.this(idx);
   }
-  return nonLocalAccess(i);
+  return nonLocalAccess(idx);
 }
 
 proc DiagonalArr.nonLocalAccess(i: rank*idxType) ref {
-  return locArr(dom.dist.targetLocsIdx(i))(i);
+  return locArr(dom.dist.targetLocsIdx(i)).this(i);
 }
-
-proc DiagonalArr.dsiAccess(i: idxType...rank) ref
-  return dsiAccess(i);
+//
+//proc DiagonalArr.dsiAccess(i: idxType...rank) ref
+//  return dsiAccess(i);
 
 iter DiagonalArr.these() ref {
   for i in dom do
@@ -736,7 +741,7 @@ iter DiagonalArr.these(param tag: iterKind, followThis, param fast: bool = false
     // live on a different locale and require communication for reference
     // counting. Simply put: don't slice inside a local block.
     //
-    ref chunk = arrSection.myElems(myFollowThisDom);
+    ref chunk = arrSection.myElems(myFollowThisDom.dim(1));
     local {
       for i in chunk do yield i;
     }
@@ -849,8 +854,9 @@ proc DiagonalArr.dsiPostReallocate() {
 //
 // TODO: Should this be inlined?
 //
-proc LocDiagonalArr.this(i) ref {
-  return myElems(i);
+proc LocDiagonalArr.this(i: rank*idxType) ref {
+  var idx = i(1);
+  return myElems(idx);
 }
 
 //
