@@ -103,6 +103,21 @@ iter localeTree(k=2, locales=Locales) {
 }
 
 
+/* TODO --
+   Needs to be recursive, e.g.
+
+   sublocales = [Locales[root], (..Locales[children(root)])];
+   coforall loc in sublocales {
+     if loc == root then yield root;
+     else {
+      forall child in children(loc) do yield child;
+     }
+   }
+
+   forall loc in LocaleTree() {
+
+   }
+ */
 /*
   Iterates through `locales` via the  `on parent - yield children` broadcast
   pattern, where each parent locale has `k` children, ultimately yielding every
