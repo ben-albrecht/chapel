@@ -135,7 +135,7 @@ def gen_preamble(chapelfile, link=None):
     return '\n'.join(output)
 
 
-def gen_rst(handle):
+def gen_rst(handle, filepath):
     """Convert contents of file handle to restructured text, using the rules
     described in the module doc string (__doc__)"""
 
@@ -143,9 +143,11 @@ def gen_rst(handle):
     commentdepth = 0
     state = ''
     indentation = -1
+    filelength = 0
 
     # Each line is rst or code-block
     for (i, line) in enumerate([l.strip('\n') for l in handle.readlines()]):
+        filelength = i
 
         # Skip title comment if present
         if i == 0:
@@ -153,7 +155,7 @@ def gen_rst(handle):
                 continue
 
         # Skip empty lines
-        if len(line.strip()) == 0:
+        if len(line.strip()) == 0 and 'code' not in state:
             output.append('')
             continue
 
@@ -174,11 +176,16 @@ def gen_rst(handle):
         elif 'code' in laststate:
             state = 'code'
         else:
-            state = 'codeblock'
+            state = 'codeinclude'
 
         if 'comment' in state:
 
-            if 'comment' not in laststate:
+            if 'code' in laststate:
+                end = i
+                # Weird offset
+                if end < start:
+                    end = start
+                output[-1] += ' {0}-{1}'.format(start, end)
                 output.append('')
 
             rstline = line
@@ -217,12 +224,22 @@ def gen_rst(handle):
             indentation = -1
 
             # Write code block
-            if state == 'codeblock':
+            if state == 'codeinclude':
                 output.append('')
-                output.append('.. code-block:: chapel')
-                output.append('')
-            codeline = ''.join(['    ', line])
-            output.append(codeline)
+                output.append('.. literalinclude:: {0}'.format(filepath))
+                output.append('  :language: chapel')
+                output.append('  :lines: ')
+                start = i+1
+
+    # In case file ends with codeblock
+    if output[-1].endswith(':lines: '):
+        end = filelength
+        # Weird offset
+        if end < start:
+            end = start
+        output[-1] += ' {0}-{1}'.format(start, end)
+        output[-1] += str(filelength)
+        output.append('')
 
     return '\n'.join(output)
 
@@ -255,11 +272,18 @@ def getfname(chapelfile, output, prefix):
         rstfile = os.path.join(prefix, rstname)
         return rstfile
     elif output == 'stdout':
-        print('Warning: prefix ignored for stdout')
+        #print('Warning: prefix ignored for stdout')
         return None
     else:
         print('Error: output = {0} is invalid')
         sys.exit(1)
+
+
+def getfilepath(chapelfile, fname):
+    """Compute relative path from fname to chapelfile"""
+    abschpl = os.path.abspath(chapelfile)
+    absrst = os.path.abspath(fname)
+    return os.path.relpath(abschpl, os.path.dirname(absrst))
 
 
 def write(rstoutput, output):
@@ -287,15 +311,16 @@ def main(**kwargs):
 
         preamble = gen_preamble(chapelfile, link=link)
 
+        fname = getfname(chapelfile, output, prefix)
+        filepath = getfilepath(chapelfile, fname)
+
         with open(chapelfile, 'r') as handle:
             if codeblock:
                 rstoutput = gen_codeblock(handle)
             else:
-                rstoutput = gen_rst(handle)
+                rstoutput = gen_rst(handle, filepath)
 
         rstoutput = '\n'.join([preamble, rstoutput])
-
-        fname = getfname(chapelfile, output, prefix)
 
         if not os.path.exists(prefix) and output != 'stdout':
             print('Creating directory: ', prefix)
