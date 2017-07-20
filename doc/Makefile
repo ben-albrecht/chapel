@@ -57,7 +57,7 @@ primers: clean-primers
 hellos: clean-hellos
 	@echo
 	@echo "Generating hellos from "'$$CHPL_HOME'"/test/release/examples to $(SOURCEDIR)/examples"
-	$(CHPL2RST) $(CHPL2RSTOPTS_HELLO) ../examples/hello*.chpl
+	$(CHPL2RST) $(CHPL2RSTOPTS_HELLO) ../test/release/examples/hello*.chpl
 	cp -f $(SOURCEDIR)/meta/examples/* $(SOURCEDIR)/examples
 
 symlinks: clean-symlinks
