@@ -34,34 +34,31 @@ proc children(root, k, size) {
   return (root*k+1..#k)(..size);
 }
 
-iter tree(root=0, locales=Locales, k=2): locale {
-  const c = children(root, k, locales.size-1);
+iter tree(locales=Locales, k=2, rootIdx=0): locale {
+  const c = children(rootIdx, k, locales.size-1);
   var sublocales: [0..c.length] locale;
-  sublocales = locales[root];
+  sublocales = locales[rootIdx];
   sublocales[1..] = locales[c];
   for loc in sublocales {
-    if loc.id == root then yield locales[root];
+    if loc.id == rootIdx then yield locales[rootIdx];
     else {
-      for child in tree(root=loc.id, locales=locales, k=k) {
+      for child in tree(locales=locales, k=k, rootIdx=loc.id) {
         yield child;
       }
     }
   }
 }
 
-iter tree(param tag: iterKind, root=0, locales=Locales, k=2): locale where tag == iterKind.standalone {
-  const c = children(root, k, locales.size-1);
+iter tree(param tag: iterKind, locales=Locales, k=2, rootIdx=0): locale where tag == iterKind.standalone {
+  const zeroed = reshape(locales, {0..#locales.size});
+  const c = children(rootIdx, k, locales.size-1);
   var sublocales: [0..c.length] locale;
-  sublocales = locales[root];
-  sublocales[1..] = locales[c];
+  sublocales = locales[rootIdx];
+  sublocales[1..] = zeroed[c];
   coforall loc in sublocales do on loc {
-    if loc.id == root then yield locales[root];
+    if loc.id == rootIdx then yield locales[rootIdx];
     else {
-      // Making this a forall -> ):
-      //  $CHPL_HOME/modules/internal/ChapelIteratorSupport.chpl:178: error: unable to resolve return type of function '_toStandalone'
-      //  tree.chpl:52: In iterator 'tree':
-      //  tree.chpl:60: error: called recursively at this point
-      for child in tree(root=loc.id, locales=locales, k=k) do on child {
+      for child in tree(tag=iterKind.standalone, locales=locales, k=k, rootIdx=loc.id) do on child {
         yield child;
       }
     }
