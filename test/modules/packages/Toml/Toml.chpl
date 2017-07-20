@@ -121,7 +121,7 @@ Parser module with the Toml class for the Chapel TOML library.
        var tbl: [tblD] Toml;
        var (tblPath, tblLeaf) = splitTblPath(tblname);
        if !rootTable.pathExists(tblPath) then makePath(tblPath);
-       rootTable[tblPath].A[tblLeaf] = new Toml(tbl);
+       rootTable[tblPath][tblLeaf] = new Toml(tbl);
        curTable = tblname;
      }
 
@@ -135,14 +135,14 @@ Parser module with the Toml class for the Chapel TOML library.
          if first { 
            var tblD: domain(string);
            var tbl: [tblD] Toml;
-           rootTable.A[parent] = new Toml(tbl);
+           rootTable[parent] = new Toml(tbl);
            first = false;
          }
          else {
            var tblD: domain(string);
            var tbl: [tblD] Toml;
            var grandParent = '.'.join(path[..firstIn+i]);
-           rootTable[grandParent].A[parent] = new Toml(tbl);
+           rootTable[grandParent][parent] = new Toml(tbl);
            i+=1;
          }
        }
@@ -154,12 +154,12 @@ Parser module with the Toml class for the Chapel TOML library.
        var tbl: [tblD] Toml;
        if curTable.isEmptyString() {
          tblname = key;
-         rootTable.A[key] = new Toml(tbl);
+         rootTable[key] = new Toml(tbl);
        }
        else {
          tblname = '.'.join(curTable, key);
          var (tblPath, tblLeaf) = splitTblPath(tblname);
-         rootTable[tblPath].A[tblLeaf] = new Toml(tbl);
+         rootTable[tblPath][tblLeaf] = new Toml(tbl);
        }
        var temp = curTable;
        curTable = tblname;
@@ -182,8 +182,8 @@ Parser module with the Toml class for the Chapel TOML library.
        }
        else {
          var value = parseValue();
-         if curTable.isEmptyString() then rootTable.A[key] = value;
-         else rootTable[curTable].A[key] = value;
+           if curTable.isEmptyString() then rootTable.A[key] = value;
+         else rootTable[curTable][key] = value;
        }
      }
      
