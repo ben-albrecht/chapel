@@ -2,6 +2,10 @@
  *  Check correctness of sort routines. Output nothing if correct.
  */
 
+// TODO
+// validate quickSort
+// use quickSort to validate others
+
 use Sort;
 use Random;
 

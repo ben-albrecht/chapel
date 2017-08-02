@@ -11,7 +11,7 @@ use Time;
 
 config const M: int = 6,                    // 2**M bytes
              correctness: bool = true,      // Disables output
-             sorts: string = 'qhims';       // Sorts to use (first letter)
+             sorts: string = 'qhimst';       // Sorts to use (first letter)
 
 // Array properties
 config type T = int;                // Type of array
