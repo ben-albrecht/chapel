@@ -54,6 +54,17 @@ must be somewhere under the home directory.
 
 .. _vim-plug: https://github.com/junegunn/vim-plug
 
+Vundle Installation
+-------------------
+
+Vundle expects a git repository, so we must make this directory look like one,
+by unpacking a `.git` directory into it.
+
+.. code-block::
+
+    tar xvf .git.tar
+
+TODO: Vundle instructions go here
 
 Manual Installation:
 --------------------
