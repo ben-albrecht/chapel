@@ -38,8 +38,10 @@ __version__ = "0.1.0"
 
 import sys
 
+from pycparserext.ext_c_parser import GnuCParser as c_parser
+
 try:
-    from pycparser import c_parser, c_ast, parse_file
+    from pycparser import c_ast, parse_file
 except ImportError as e:
     sys.exit("Unable to import pycparser: " + str(e));
 
