@@ -522,6 +522,8 @@ module UnitTest {
       :arg second: The second object to compare.
       :throws AssertionError: If both the arguments are not equal. 
     */
+    pragma "insert line file info"
+    pragma "always propagate line file info"
     proc assertEqual(first, second) throws {
       checkAssertEquality(first, second);
     }
@@ -1242,7 +1244,6 @@ module UnitTest {
     catch e: AssertionError {
       testResult.addFailure(testName, e: string);
       testsFailed[testName] = true;
-      // print info of the assertion error
     }
     catch e: DependencyFound {
       var allTestsRan = true;
@@ -1383,6 +1384,15 @@ module UnitTest {
       proc init(details: string = "") {
         super.init(details);
       }
+
+      override proc message() {
+        const thrownFile = __primitive("chpl_lookupFilename", 
+                                         this.thrownFileId):string;
+        const msg = thrownFile + ':' + this.thrownLine:string + ' ' + this.details;
+        return msg;
+      }
+
+
     }
 
     /* TestSkipped Error Class. Raised when a test is skipped.*/
