@@ -20,6 +20,7 @@ proc main() {
   equalStrings();
   unequalHighArraySameType();
   equalHighArrayDiffType();
+  equalOffsetArray();
   Unequal1DArray();
   UnequalComplex();
   UnequalPrimitive();
@@ -58,6 +59,12 @@ proc unequalHighArraySameType() {
   var x1 : [1..5,1..7,1..6] real;
   var y1 : [{1..5,1..7}] real;
   testAssert(x1,y1,"Unequal Array Same Type");
+}
+
+proc equalOffsetArray() {
+  var x1: [0..2] int = [1,7,6];
+  var y1: [0..2] int  = [1,7,6];
+  testAssert(x1, y1, "Unequal Offset Array");
 }
 
 proc equalHighArrayDiffType() {

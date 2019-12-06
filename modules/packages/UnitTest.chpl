@@ -445,14 +445,13 @@ module UnitTest {
       const genericErrorMsg = "assert failed -\n'" + stringify(array1) +
                               "'\nand\n'"+stringify(array2) + "'\n";
 
-      // Compare array types, size, and shape
       if array1.type != array2.type {
+        // Compare types
         const errorMsg = genericErrorMsg + "are not of same type";
         throw new owned AssertionError(errorMsg);
-      } else if array1.size != array2.size {
-        const errorMsg = genericErrorMsg + "are not of same size";
-        throw new owned AssertionError(errorMsg);
-      } else if array1.shape != array2.shape {
+      }
+      else if array1.shape != array2.shape {
+        // Compare shapes (this implicitly compares sizes too)
         const errorMsg = genericErrorMsg + "are not of same shape";
         throw new owned AssertionError(errorMsg);
       }
