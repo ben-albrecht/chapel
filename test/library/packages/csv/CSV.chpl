@@ -52,16 +52,16 @@ module CSV {
       if ch.writing then compilerError("reading from a writing channel");
 
       for l in ch.lines() {
-        const line = l.strip(leading=false);
-        if line.length == 0 then
-          continue;
-        const vals = line.split(sep);
-        for param i in 1..numFields(t) {
-          getFieldRef(r, i) = vals[i]: getField(r, i).type;
-        }
         if skipHeader {
           skipHeader = false;
         } else {
+          const line = l.strip(leading=false);
+          if line.length == 0 then
+            continue;
+          const vals = line.split(sep);
+          for param i in 1..numFields(t) {
+            getFieldRef(r, i) = vals[i]: getField(r, i).type;
+          }
           yield r;
         }
       }
@@ -81,16 +81,16 @@ module CSV {
       var r: t;
       var skipHeader = hasHeader;
       for l in ch.lines() {
-        const line = l.strip(leading=false);
-        if line.length == 0 then
-          continue;
-        const vals = line.split(sep);
-        for param i in 1..t.size {
-          r(i) = vals[i]: t(i);
-        }
         if skipHeader {
           skipHeader = false;
         } else {
+          const line = l.strip(leading=false);
+          if line.length == 0 then
+            continue;
+          const vals = line.split(sep);
+          for param i in 1..t.size {
+            r(i) = vals[i]: t(i);
+          }
           yield r;
         }
       }
@@ -108,6 +108,7 @@ module CSV {
     /* Read a CSV file with arbitrarily many rows and columns. Returns the
        data as strings in a 2D array. */
     proc read(type t: string) throws {
+      writeln('read()');
       if ch.writing then compilerError("reading from a writing channel");
       var r: t;
       var skipHeader = hasHeader;
@@ -115,6 +116,7 @@ module CSV {
       var lines = ch.lines();
       var firstLine = lines[1];
       var vals = firstLine.strip().split(sep);
+      writeln(vals);
       const numRows = if skipHeader then lines.numElements - 1
                                     else lines.numElements;
       var A: [1..numRows, 1..vals.numElements] string;
