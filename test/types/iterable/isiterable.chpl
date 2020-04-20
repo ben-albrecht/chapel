@@ -33,16 +33,34 @@ var d: domain(string);
 var aa: [d] int;
 youAreIterable(aa);
 
+// Iterable expression
+youAreIterable(for i in 1..4 do i*2);
 
-inline proc youAreNotIterable(type t) {
+iter f() {
+  for i in 2..10 by 2 {
+    yield i;
+  }
+}
+
+youAreIterable(for i in 1..4 do i*2);
+youAreIterable(f());
+
+
+proc youAreNotIterable(type t) {
   var x: t;
   youAreNotIterable(x);
 }
 
-inline proc youAreIterable(type t) {
+proc youAreIterable(type t) {
   var x: t;
   youAreIterable(x);
 }
 
-inline proc youAreNotIterable(x) { assert(!isIterable(x)); }
-inline proc youAreIterable(x) { assert(isIterable(x)); }
+proc youAreNotIterable(x) {
+  if isIterable(x) then
+    writeln('Assertion failed, this *is* iterable: ', x);
+}
+proc youAreIterable(x) {
+  if !isIterable(x) then
+    writeln('Assertion failed, this is *not* iterable: ', x);
+}

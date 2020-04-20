@@ -414,7 +414,11 @@ proc isProperSubtype(type sub, type super) param
   return false;
 
 /* Returns `true` if `x` contains a `these()` method. */
-proc isIterable(x) param return canResolveMethod(x, 'these');
+proc isIterable(x) param {
+  use Reflection;
+  var y = x;
+  return canResolveMethod(y, 'these');
+}
 
 // Returns true if it is legal to coerce t1 to t2, false otherwise.
 pragma "no doc"
