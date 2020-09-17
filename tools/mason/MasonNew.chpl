@@ -104,12 +104,12 @@ proc masonNew(args: [] string) throws {
   Starts an interactive session to create a
   new library project.
 */
-proc beginInteractiveSession(defaultPackageName: string, defVer: string, 
+proc beginInteractiveSession(defaultPackageName: string, defVer: string,
             defChplVer: string, license: string) throws {
   writeln("""This is an interactive session to walk you through creating a library
-project using Mason. The following queries covers the common items required to
-create the project. Suggestions for defaults are also provided which will be
-considered if no input is given.""");
+             project using Mason. The following queries covers the common items required to
+             create the project. Suggestions for defaults are also provided which will be
+             considered if no input is given.""".dedent());
   writeln();
   writeln("Press ^C to quit interactive mode.");
   var packageName: string;
@@ -144,10 +144,10 @@ considered if no input is given.""");
         }
         if !isIllegalName {
           if isDir('./' + packageName) then
-            throw new owned MasonError("Bad package name. A package with the name '" 
+            throw new owned MasonError("Bad package name. A package with the name '"
                               + packageName + "' already exists.");
           if validatePackageName(packageName) then
-            gotCorrectPackageName = true; 
+            gotCorrectPackageName = true;
         }
       }
       if !gotCorrectPackageVersion {
@@ -283,7 +283,7 @@ proc InitProject(dirName, packageName, vcs, show,
     makeSrcDir(dirName);
     makeModule(dirName, fileName=packageName);
     makeTestDir(dirName);
-    makeExampleDir(dirName);  
+    makeExampleDir(dirName);
     writeln("Created new library project: " + dirName);
   }
   else {
@@ -321,7 +321,7 @@ license = "%s"
 }
 
 /* Creates the Mason.toml file */
-proc makeBasicToml(dirName: string, path: string, version: string, 
+proc makeBasicToml(dirName: string, path: string, version: string,
             chplVersion: string, license: string) {
   var defaultVersion: string = "0.1.0";
   var defaultChplVersion: string = getChapelVersionStr();
