@@ -44,6 +44,7 @@ Diagnostics
 
    CommDiagnostics <standard/CommDiagnostics>
    Memory <standard/Memory>
+   Diagnostics <standard/Memory/Diagnostics>
 
 
 Files/IO

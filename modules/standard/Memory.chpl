@@ -26,7 +26,7 @@
 
     In previous releases, the :mod:`Memory` module contained procedures
     which reported information about memory usage. These procedures are now
-    deprecated - please use the equivalents in the :mod:`~Memory.Diagnostics`
+    deprecated - please use the equivalents in the :mod:`Diagnostics`
     submodule instead.
 
  */
@@ -43,7 +43,7 @@ private extern proc chpl_memoryUsed(): uint(64);
   .. warning::
 
     This enum is deprecated - please use
-    :enum:`~Memory.Diagnostics.MemUnits`.
+    :enum:`Diagnostics.MemUnits`.
 
  */
 enum MemUnits {Bytes, KB, MB, GB};
@@ -52,7 +52,7 @@ enum MemUnits {Bytes, KB, MB, GB};
   .. warning::
 
     This method is deprecated - please use
-    :proc:`~Memory.Diagnostics.physicalMemory()`.
+    :proc:`Diagnostics.locale.physicalMemory()`.
 
   How much physical memory is present on this locale?
 
